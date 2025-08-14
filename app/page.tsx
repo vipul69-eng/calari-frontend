@@ -1,103 +1,167 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useEffect } from "react";
+import Link from "next/link";
+import { useUser as useClerkUser, SignedIn, SignedOut, SignInButton, useAuth } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+import { ArrowRight, Camera, Wand2, ListChecks } from "lucide-react";
+import { useUserStore } from "@/store/user-store";
+import { useGetUser, useUpsertUser } from "@/hooks/use-user";
+import { useMealCountStore } from "@/store/use-count";
+import { useRouter } from "next/navigation";
+
+export default function LandingApp() {
+  const { user: clerkUser } = useClerkUser();
+  const savedUser = useUserStore((state) => state.user);
+  const setUser = useUserStore((state) => state.setUser);
+  const clearUser = useUserStore((state) => state.clearUser);
+
+  const email = clerkUser?.primaryEmailAddress?.emailAddress;
+  const { data: fetchedUser, error: fetchError, loading } = useGetUser(email);
+  const { upsertUser, data: upsertData } = useUpsertUser();
+  const {fetchMealCount} = useMealCountStore()
+  const router = useRouter()
+  const {getToken}=useAuth()
+  const onGoToApp=()=>{
+    getToken().then(t=>{
+fetchMealCount(t as string).then(()=>{
+      router.push("/home")
+    })
+    })
+    
+  }
+
+  useEffect(() => {
+    if (!clerkUser && savedUser) {
+      clearUser();
+    }
+  }, [clerkUser, savedUser, clearUser]);
+
+  useEffect(() => {
+    if (fetchedUser && email) {
+      setUser(fetchedUser);
+    }
+  }, [fetchedUser, email, setUser]);
+
+  // Handle user creation when user doesn't exist in backend
+  useEffect(() => {
+    if (email && fetchError && !loading && !fetchedUser) {
+      // Only create user if we got a 404 (user not found)
+      const is404Error = fetchError.includes("User not found") || fetchError.includes("404");
+      
+      if (is404Error) {
+        upsertUser({
+          email,
+          plan: "basic",
+          profile: {}
+        });
+      }
+    }
+  }, [email, fetchError, loading, fetchedUser, upsertUser]);
+
+  // Handle successful user creation - update store
+  useEffect(() => {
+    if (upsertData) {
+      setUser(upsertData);
+
+    }
+  }, [upsertData, setUser]);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <main className="relative min-h-screen bg-black text-white">
+      {/* Hero Section */}
+      <section className="relative z-10 grid min-h-[70vh] place-items-center px-6">
+        <div className="mx-auto w-full max-w-lg text-center">
+          <h1 className="select-none text-[clamp(44px,14vw,88px)] font-extrabold">
+            Calari
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-white/90 text-sm sm:text-base">
+            Camera-first food tracking and health management.
+          </p>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          <div className="mt-6 flex items-center justify-center">
+            <SignedOut>
+              <SignInButton mode="modal" withSignUp appearance={{ theme: "simple" }}>
+                <Button className="h-12 w-[min(340px,78vw)] rounded-xl bg-white text-black">
+                  <span className="flex items-center justify-center gap-2">
+                    Sign In <ArrowRight className="h-4 w-4" />
+                  </span>
+                </Button>
+              </SignInButton>
+            </SignedOut>
+
+            <SignedIn>
+              {savedUser ? (
+                  <Button onClick={onGoToApp} className="h-12 w-[min(340px,78vw)] rounded-xl bg-white text-black">
+                    <span className="flex items-center justify-center gap-2">
+                      Go to app <ArrowRight className="h-4 w-4" />
+                    </span>
+                  </Button>
+              ) : (
+                <Button disabled className="h-12 w-[min(340px,78vw)] rounded-xl bg-gray-300 text-gray-600">
+                  Loading...
+                </Button>
+              )}
+            </SignedIn>
+          </div>
+
+          <div className="mt-2 text-xs opacity-85">
+            No fuss. Open, snap, track.
+          </div>
+
+         
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      {/* How Calari Helps Section */}
+      <section
+        id="overview"
+        className="relative z-10 -mt-6 rounded-t-[28px] bg-white text-neutral-900"
+        style={{ boxShadow: "0 -10px 40px rgba(0,0,0,0.15)" }}
+      >
+        <div className="mx-auto max-w-screen-sm px-5 py-10">
+          <h2 className="text-center text-xl font-semibold">How Calari helps</h2>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <OverviewCard
+              icon={<Camera className="h-5 w-5 text-emerald-700" />}
+              title="Scan quickly"
+              desc="Point the camera, capture, and log."
+            />
+            <OverviewCard
+              icon={<Wand2 className="h-5 w-5 text-emerald-700" />}
+              title="Get suggestions"
+              desc="Personalized tips to reach your goals."
+            />
+            <OverviewCard
+              icon={<ListChecks className="h-5 w-5 text-emerald-700" />}
+              title="Track simply"
+              desc="Clear daily view to stay on track."
+            />
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function OverviewCard({
+  icon,
+  title,
+  desc
+}: {
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-50 text-emerald-700">
+          {icon}
+        </div>
+        <div className="text-base font-semibold">{title}</div>
+      </div>
+      <p className="mt-2 text-sm text-neutral-600">{desc}</p>
     </div>
   );
 }

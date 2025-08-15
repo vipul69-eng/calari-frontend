@@ -8,14 +8,19 @@ import { cn } from "@/lib/utils"
 import {
   Bell,
   Check,
-  Coins,
+  CreditCard,
   Crown,
+  DollarSign,
   LogOut,
   Moon,
   Music2,
+  Receipt,
   Ruler,
+  Shield,
   Sparkles,
   Sun,
+  User,
+  Wallet,
 } from "lucide-react"
 import {
   AlertDialog,
@@ -34,18 +39,18 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@clerk/nextjs"
-import { useUserStore } from "@/store/user-store" // ✅ Fixed import path
+import { useUserStore } from "@/store/user-store"
 import { useUpsertUser } from "@/hooks/use-user"
 
-type Plan = "basic" | "pro" | "creator"
+type Plan = "basic" | "pro"
 type Units = "metric" | "imperial"
 
 export default function SettingsPage() {
   const router = useRouter()
   const { theme, setTheme, systemTheme } = useTheme()
   const { signOut } = useAuth()
+
   
-  // ✅ Get user data from Zustand store
   const user = useUserStore((state) => state.user)
   const setUser = useUserStore((state) => state.setUser)
   const clearUser = useUserStore((state) => state.clearUser)
@@ -54,10 +59,12 @@ export default function SettingsPage() {
   const [notifications, setNotifications] = useState(true)
   const [units, setUnits] = useState<Units>("metric")
 
-  // ✅ Get plan from user store, not localStorage
   const plan = user?.plan || "basic"
-
-  // Nicer label on theme
+const onProClicked=()=>{
+    const url = "https://test.checkout.dodopayments.com/buy/pdt_vmZWtlgMx8N9tTi5ClSqb?quantity=1&redirect_url=https://b9be63be7af7.ngrok-free.app%2Fpayments";
+    localStorage.setItem("dodo-user-calari",user?.id as string)
+    window.open(url,"_blank", "noopener,noreferrer");
+  }
   const themeLabel = useMemo(() => {
     if (theme === "system") {
       return `System (${systemTheme ?? "auto"})`
@@ -65,7 +72,6 @@ export default function SettingsPage() {
     return theme === "dark" ? "Dark" : "Light"
   }, [theme, systemTheme])
 
-  // Hydrate preferences from localStorage (only for UI preferences, not user data)
   useEffect(() => {
     try {
       const n = localStorage.getItem("calari:notifications")
@@ -75,7 +81,6 @@ export default function SettingsPage() {
     } catch {}
   }, [])
 
-  // Persist UI preferences to localStorage
   useEffect(() => {
     try {
       localStorage.setItem("calari:notifications", notifications ? "1" : "0")
@@ -88,7 +93,6 @@ export default function SettingsPage() {
     } catch {}
   }, [units])
 
-  // Small haptic feedback helper
   function haptic(ms = 12) {
     try {
       if ("vibrate" in navigator) navigator.vibrate?.(ms)
@@ -99,60 +103,83 @@ export default function SettingsPage() {
     haptic(16)
     try {
       await signOut()
-      clearUser() // ✅ This is correct
+      clearUser()
       sessionStorage.clear()
     } catch {}
     router.push("/")
   }
 
-  // ✅ Update plan in both store and backend
   async function onSelectPlan(nextPlan: Plan) {
     haptic(12)
-    
+
     if (!user) return
 
     try {
-      // Update backend
       await upsertUser({
         email: user.email,
         plan: nextPlan,
-        profile: user.profile || {}
+        profile: user.profile || {},
       })
 
-      // Update store immediately
       const updatedUser = {
         ...user,
-        plan: nextPlan
+        plan: nextPlan,
       }
       setUser(updatedUser)
-    } catch {
-    }
+    } catch {}
   }
 
   return (
-    <main
-      className="min-h-dvh bg-white text-neutral-900 antialiased dark:bg-black dark:text-neutral-50"
-      style={{
-        paddingTop: "env(safe-area-inset-top)",
-        paddingBottom: "env(safe-area-inset-bottom)",
-        paddingLeft: "env(safe-area-inset-left)",
-        paddingRight: "env(safe-area-inset-right)",
-      }}
-    >
-      <div className="mx-auto max-w-screen-sm px-4 py-6 space-y-6">
-        {/* Appearance */}
-        <Card className="rounded-2xl border-neutral-200 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Appearance</CardTitle>
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto max-w-2xl px-4 py-8 space-y-8">
+        <div className="text-center space-y-2">
+          <h1 onClick={()=>{
+            router.push("/payments")
+          }} className="text-3xl font-heading text-foreground">Settings</h1>
+          <p className="text-muted-foreground">Manage your account preferences and settings</p>
+        </div>
+
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-primary/10 p-2">
+                <User className="h-5 w-5 text-primary" />
+              </div>
+              <CardTitle className="text-lg font-heading">Account</CardTitle>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <Label className="text-sm text-neutral-700 dark:text-neutral-300">Theme</Label>
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border">
+              <div>
+                <p className="font-medium text-foreground">{user?.email || "Not signed in"}</p>
+                <p className="text-sm text-muted-foreground">Account email</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium text-primary capitalize">{plan} Plan</p>
+                <p className="text-xs text-muted-foreground">Current subscription</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Appearance */}
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-primary/10 p-2">
+                <Sun className="h-5 w-5 text-primary" />
+              </div>
+              <CardTitle className="text-lg font-heading">Appearance</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-foreground">Theme</Label>
               <Select value={theme ?? "system"} onValueChange={(v) => setTheme(v as "light" | "dark" | "system")}>
-                <SelectTrigger className="w-full rounded-xl dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
+                <SelectTrigger className="w-full bg-background border-border">
                   <SelectValue placeholder={themeLabel} />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl dark:border-neutral-800 dark:bg-neutral-900">
+                <SelectContent className="bg-popover border-border">
                   <SelectItem value="system">System</SelectItem>
                   <SelectItem value="light">
                     <div className="flex items-center gap-2">
@@ -168,122 +195,126 @@ export default function SettingsPage() {
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              <p className="text-xs text-muted-foreground">
                 Choose how Calari looks. System follows your device setting.
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Preferences */}
-        <Card className="rounded-2xl border-neutral-200 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Preferences</CardTitle>
+
+
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-primary/10 p-2">
+                <Wallet className="h-5 w-5 text-primary" />
+              </div>
+              <CardTitle className="text-lg font-heading">Payment & Billing</CardTitle>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <ListItem
-              icon={<Bell className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />}
-              title="Notifications"
-              subtitle="Reminders and updates"
+          <CardContent className="space-y-4">
+            {user?.plan=="basic" &&<SettingItem
+              icon={<DollarSign className="h-5 w-5 text-primary" />}
+              title="Get Calari Pro"
+              subtitle="Get access to latest features"
               right={
-                <Switch
-                  checked={notifications}
-                  onCheckedChange={(v) => setNotifications(Boolean(v))}
-                  aria-label="Notifications"
-                />
+                <Button onClick={onProClicked} variant="outline" size="sm" className="text-xs bg-transparent">
+                  Go Pro
+                </Button>
+              }
+            />}
+            <SettingItem
+              icon={<CreditCard className="h-5 w-5 text-primary" />}
+              title="Plan Details"
+              subtitle="All the details related to your plan."
+              right={
+                <Button variant="outline" size="sm" className="text-xs bg-transparent">
+                  View
+                </Button>
               }
             />
-            <ListItem
-              icon={<Ruler className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />}
-              title="Units"
-              subtitle="Measurement preference"
-              right={
-                <UnitsPill
-                  value={units}
-                  onChange={(val) => {
-                    haptic(8)
-                    setUnits(val)
-                  }}
-                />
-              }
-            />
+            
           </CardContent>
         </Card>
 
-        {/* Plans */}
-        <Card className="rounded-2xl border-neutral-200 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
-          <CardHeader className="pb-2">
+       
+
+        {/* Subscription Plans */}
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold">Plans</CardTitle>
-              <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-300">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-primary/10 p-2">
+                  <Crown className="h-5 w-5 text-primary" />
+                </div>
+                <CardTitle className="text-lg font-heading">Subscription Plans</CardTitle>
+              </div>
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                 Cancel anytime
               </span>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             <PlanOption
-              icon={<Music2 className="h-5 w-5" aria-hidden="true" />}
+              icon={<Music2 className="h-5 w-5" />}
               title="Basic"
               price="0 USD"
               cadence=""
               features={["3 tracks per day"]}
               selected={plan === "basic"}
-              onSelect={() => onSelectPlan("basic")}
             />
             <PlanOption
-              icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
+              icon={<Sparkles className="h-5 w-5" />}
               title="Pro"
-              price="₹99"
+              price="₹199"
               cadence="/month"
-              features={["29 tracks daily", "Profile-based recommendations"]}
+              features={["29 tracks daily", "Profile-based recommendations","All future pro features"]}
               selected={plan === "pro"}
               accent
               badge="Recommended"
-              onSelect={() => onSelectPlan("pro")}
             />
-            <PlanOption
-              icon={<Crown className="h-5 w-5" aria-hidden="true" />}
-              title="Creator"
-              price="₹199"
-              cadence="/month"
-              features={["29 tracks daily", "Profile-based recommendations", "Recipe uploading", "Monetization"]}
-              selected={plan === "creator"}
-              onSelect={() => onSelectPlan("creator")}
-              extraIcon={<Coins className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />}
-            />
+            
           </CardContent>
         </Card>
 
-        {/* Account */}
-        <Card className="rounded-2xl border-neutral-200 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/60">
-          <CardHeader className="pb-1">
-            <CardTitle className="text-base font-semibold">Account</CardTitle>
+        {/* Account Actions */}
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-destructive/10 p-2">
+                <LogOut className="h-5 w-5 text-destructive" />
+              </div>
+              <CardTitle className="text-lg font-heading">Account Actions</CardTitle>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="w-full rounded-xl">
-                  <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Log out
+                <Button variant="destructive" className="w-full">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign Out
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent className="rounded-xl">
+              <AlertDialogContent className="bg-popover border-border">
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
-                  <AlertDialogDescription>You will need to sign in again to access your account.</AlertDialogDescription>
+                  <AlertDialogTitle>Are you sure you want to sign out?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    You will need to sign in again to access your account.
+                  </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel> No </AlertDialogCancel>
-                  <AlertDialogAction onClick={onLogout}> Yes </AlertDialogAction>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={onLogout}>Sign Out</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">This won&apos;t delete your account.</p>
+            <p className="text-xs text-muted-foreground mt-2 text-center">This won&apos;t delete your account.</p>
           </CardContent>
         </Card>
 
-        {/* About */}
-        <div className="pb-20 text-center text-xs text-neutral-500 dark:text-neutral-400">
+        {/* Footer */}
+        <div className="text-center text-xs text-muted-foreground py-8">
           {"Calari v0.1.0 • © "}
           {new Date().getFullYear()}
         </div>
@@ -292,8 +323,7 @@ export default function SettingsPage() {
   )
 }
 
-// Rest of your subcomponents remain the same...
-function ListItem(props: {
+function SettingItem(props: {
   icon?: React.ReactNode
   title: string
   subtitle?: string
@@ -301,19 +331,15 @@ function ListItem(props: {
 }) {
   const { icon, title, subtitle, right } = props
   return (
-    <div className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white px-3 py-2.5 shadow-sm transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-900/80">
+    <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors">
       <div className="flex min-w-0 items-center gap-3">
-        {icon ? (
-          <div className="rounded-lg bg-emerald-100 p-2 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:ring-emerald-900/40">
-            {icon}
-          </div>
-        ) : null}
+        {icon && <div className="rounded-lg bg-primary/10 p-2">{icon}</div>}
         <div className="min-w-0">
-          <div className="truncate text-sm font-medium">{title}</div>
-          {subtitle ? <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">{subtitle}</p> : null}
+          <div className="font-medium text-foreground">{title}</div>
+          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
         </div>
       </div>
-      {right ? <div className="pl-3">{right}</div> : null}
+      {right && <div className="ml-4">{right}</div>}
     </div>
   )
 }
@@ -325,35 +351,27 @@ function UnitsPill(props: {
   const value = props.value ?? "metric"
   const onChange = props.onChange ?? (() => {})
   return (
-    <div
-      role="tablist"
-      aria-label="Unit preference"
-      className="inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white p-1 text-xs shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
-    >
+    <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-background p-1 text-xs">
       <button
         type="button"
-        role="tab"
-        aria-selected={value === "metric"}
         onClick={() => onChange("metric")}
         className={cn(
-          "rounded-md px-2.5 py-1.5 transition-colors",
+          "rounded-md px-3 py-1.5 transition-colors font-medium",
           value === "metric"
-            ? "bg-emerald-600 text-white"
-            : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800",
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
         )}
       >
         Metric
       </button>
       <button
         type="button"
-        role="tab"
-        aria-selected={value === "imperial"}
         onClick={() => onChange("imperial")}
         className={cn(
-          "rounded-md px-2.5 py-1.5 transition-colors",
+          "rounded-md px-3 py-1.5 transition-colors font-medium",
           value === "imperial"
-            ? "bg-emerald-600 text-white"
-            : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800",
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
         )}
       >
         Imperial
@@ -372,71 +390,51 @@ function PlanOption(props: {
   accent?: boolean
   badge?: string
   onSelect?: () => void
-  extraIcon?: React.ReactNode
 }) {
-  const { icon, title, price, cadence, features, selected, accent, badge, onSelect, extraIcon } = props
+  const { icon, title, price, cadence, features, selected, accent, badge, onSelect } = props
 
   return (
     <div
       className={cn(
-        "rounded-xl p-3 shadow-sm ring-1",
-        "bg-white dark:bg-neutral-900",
-        selected
-          ? "ring-emerald-500/50"
-          : accent
-            ? "ring-emerald-200/60 dark:ring-emerald-900/60"
-            : "ring-neutral-200 dark:ring-neutral-800",
+        "rounded-lg p-4 border transition-all hover:shadow-md",
+        "bg-background",
+        selected ? "border-primary shadow-sm ring-1 ring-primary/20" : accent ? "border-primary/30" : "border-border",
       )}
-      role="group"
-      aria-label={`${title} plan`}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-emerald-100 p-2 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:ring-emerald-900/40">
-            {icon}
-          </div>
+          <div className="rounded-lg bg-primary/10 p-2 text-primary">{icon}</div>
           <div>
             <div className="flex items-center gap-2">
-              <div className="text-sm font-semibold">{title}</div>
-              {badge ? (
-                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-300">
-                  {badge}
-                </span>
-              ) : null}
+              <div className="font-semibold text-foreground">{title}</div>
+              {badge && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{badge}</span>
+              )}
             </div>
-            <div className="text-sm text-neutral-600 dark:text-neutral-400">
-              <span className="text-base font-semibold text-neutral-900 dark:text-neutral-100">{price}</span>{" "}
-              <span className="text-xs">{cadence}</span>
+            <div className="text-sm text-muted-foreground">
+              <span className="text-lg font-semibold text-foreground">{price}</span>
+              {cadence && <span className="text-xs ml-1">{cadence}</span>}
             </div>
           </div>
         </div>
-        <Button
+        {selected && <Button
           size="sm"
-          className={cn("rounded-lg", selected ? "bg-emerald-600 text-white hover:bg-emerald-600" : "")}
+          className={cn(selected ? "bg-primary text-primary-foreground" : "")}
           variant={selected ? "default" : "outline"}
           onClick={onSelect}
-          aria-pressed={selected}
-          aria-label={selected ? `${title} selected` : `Choose ${title}`}
         >
-          {selected ? "Current" : "Choose"}
-        </Button>
+          Current
+        </Button>}
       </div>
 
-      <ul className="mt-3 space-y-2">
-        {features.map((f) => (
-          <li key={f} className="flex items-start gap-2">
-            <Check className="mt-0.5 h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-            <span className="text-sm text-neutral-700 dark:text-neutral-300">{f}</span>
+      <ul className="mt-4 space-y-2">
+        {features.map((feature) => (
+          <li key={feature} className="flex items-start gap-2">
+            <Check className="mt-0.5 h-4 w-4 text-primary flex-shrink-0" />
+            <span className="text-sm text-muted-foreground">{feature}</span>
           </li>
         ))}
       </ul>
-
-      {extraIcon ? (
-        <div className="mt-3 flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400">
-          {extraIcon}
-          <span>{"Creator perks included"}</span>
-        </div>
-      ) : null}
     </div>
   )
 }

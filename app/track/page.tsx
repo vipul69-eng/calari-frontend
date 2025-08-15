@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
@@ -18,12 +17,13 @@ import { useMealCountStore } from "@/store/use-count"
 export default function CameraPage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null) // Added ref to track stream for better cleanup
+  const streamRef = useRef<MediaStream | null>(null)
   const [flash, setFlash] = useState(false)
   const [isCardOpen, setIsCardOpen] = useState(false)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [capturedFile, setCapturedFile] = useState<File | null>(null)
   const { user } = useUserStore()
+
   // Upload and analysis hooks
   const { uploadImage, uploading, progress, error: uploadError } = useImageUpload()
   const { analyzeImage, analyzeText, analyzing, error: analysisError, result: analysisResult } = useFoodAnalysis()
@@ -35,7 +35,7 @@ export default function CameraPage() {
   const [manualQuantity, setManualQuantity] = useState("")
 
   const router = useRouter()
-  const currentDayNutrition= useCurrentDayNutrition()
+  const currentDayNutrition = useCurrentDayNutrition()
 
   // User context for personalized recommendations
   const userContext: FoodAnalysisContext | undefined =
@@ -44,11 +44,11 @@ export default function CameraPage() {
           userInfo: user?.profile.profileText,
           totalMacros: user?.profile.macros,
           consumedMacros: {
-            calories:currentDayNutrition?.totalCalories,
-            carbs:currentDayNutrition?.totalCarbs,
-            protein:currentDayNutrition?.totalProtein,
-            fat:currentDayNutrition?.totalFat
-          } ,
+            calories: currentDayNutrition?.totalCalories,
+            carbs: currentDayNutrition?.totalCarbs,
+            protein: currentDayNutrition?.totalProtein,
+            fat: currentDayNutrition?.totalFat,
+          },
         }
       : undefined
 
@@ -71,8 +71,7 @@ export default function CameraPage() {
         })
         streamRef.current = null
       }
-    } catch{
-    }
+    } catch {}
   }, [])
 
   useEffect(() => {
@@ -87,7 +86,7 @@ export default function CameraPage() {
           audio: false,
         }
         const stream = await navigator.mediaDevices.getUserMedia(constraints)
-        streamRef.current = stream // Store stream in ref for cleanup
+        streamRef.current = stream
         const video = videoRef.current
         if (video) {
           video.srcObject = stream
@@ -99,8 +98,7 @@ export default function CameraPage() {
           if (video.readyState >= 2) playWhenReady()
           else video.onloadedmetadata = playWhenReady
         }
-      } catch {
-      }
+      } catch {}
     }
     startCamera()
 
@@ -118,21 +116,18 @@ export default function CameraPage() {
       cleanupCamera()
     }
 
-    // Add event listeners for various ways user might leave
     document.addEventListener("visibilitychange", handleVisibilityChange)
     window.addEventListener("beforeunload", handleBeforeUnload)
     window.addEventListener("popstate", handlePopState)
 
     return () => {
       cleanupCamera()
-      // Remove event listeners
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       window.removeEventListener("beforeunload", handleBeforeUnload)
       window.removeEventListener("popstate", handlePopState)
     }
   }, [cleanupCamera])
 
-  // Clean up blob URLs when replaced or on unmount
   useEffect(() => {
     return () => {
       if (photoUrl) URL.revokeObjectURL(photoUrl)
@@ -166,14 +161,9 @@ export default function CameraPage() {
     const video = videoRef.current
     if (!video) return
 
-    // Haptic feedback
     hapticTap()
-
-    // Flash effect
     setFlash(true)
     setTimeout(() => setFlash(false), 120)
-
-    // Open the card immediately
     setIsCardOpen(true)
 
     const { videoWidth, videoHeight } = video
@@ -185,28 +175,23 @@ export default function CameraPage() {
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    // Draw current frame
     ctx.drawImage(video, 0, 0, videoWidth, videoHeight)
 
     canvas.toBlob(
       (blob) => {
         if (!blob) return
 
-        // Create preview URL
         const url = URL.createObjectURL(blob)
         setPhotoUrl((prev) => {
           if (prev) URL.revokeObjectURL(prev)
           return url
         })
 
-        // Create File object for upload
         const file = new File([blob], `food-${Date.now()}.jpg`, {
           type: "image/jpeg",
           lastModified: Date.now(),
         })
         setCapturedFile(file)
-
-        // Start upload and analysis automatically
         handleUploadAndAnalyze(file)
       },
       "image/jpeg",
@@ -214,31 +199,24 @@ export default function CameraPage() {
     )
   }, [ensureFullscreen, hapticTap])
 
-  // Function to handle upload and analysis
   const handleUploadAndAnalyze = useCallback(
     async (file: File) => {
       try {
-        // Step 1: Upload to Cloudinary
         const uploadResult = await uploadImage(file)
-
-        // Step 2: Analyze the food image
         await analyzeImage(uploadResult.hostableLink, userContext)
-      } catch{
-      }
+      } catch {}
     },
     [uploadImage, analyzeImage, userContext],
   )
 
-  // Handle manual text analysis
   const handleManualAnalysis = useCallback(async () => {
     if (!manualFoodName.trim() || !manualQuantity.trim()) return
 
     try {
       await analyzeText(manualFoodName.trim(), manualQuantity.trim(), userContext)
       setIsManualCardOpen(false)
-      setIsCardOpen(true) // Show results in the main card
-    } catch {
-    }
+      setIsCardOpen(true)
+    } catch {}
   }, [manualFoodName, manualQuantity, analyzeText, userContext])
 
   const closeCard = useCallback(() => {
@@ -248,7 +226,6 @@ export default function CameraPage() {
     setCapturedFile(null)
   }, [photoUrl])
 
-  // Manual card handlers
   const openManualCard = useCallback(() => {
     try {
       if ("vibrate" in navigator) navigator.vibrate?.(10)
@@ -272,14 +249,12 @@ export default function CameraPage() {
     }
   }, [capturedFile, handleUploadAndAnalyze])
 
-  // Navigate to analysis page with full data
   const handleViewFullAnalysis = useCallback(() => {
     if (user?.plan == "basic") {
       // alert("Tracked")
       // return
     }
     if (analysisResult?.data) {
-      // Store analysis data in sessionStorage for the analysis page
       sessionStorage.setItem(
         "foodAnalysisData",
         JSON.stringify({
@@ -300,55 +275,38 @@ export default function CameraPage() {
   const profile = user?.profile
   const isEmptyProfile = useMemo(() => {
     if (!profile) return true
-
-    // Check if profile is empty object {}
     if (Object.keys(profile).length === 0) return true
-
-    // Check if profile lacks essential fields
     if (!profile.name || !profile.age || !profile.macros) return true
-
-    // Check if macros are empty
     const macros = profile.macros
     if (!macros.calories || !macros.protein || !macros.fat || !macros.carbs) return true
-
     return false
   }, [profile])
 
-  // Get current food info (from analysis or default)
   const currentFood = analysisResult?.data?.foodItems?.[0] || defaultFood
   const currentMacros = analysisResult?.data?.totalMacros || defaultMacros
 
-  if((mealsScanned<=3 && user?.plan=="basic") || mealsScanned>=19) return <>
-  You cannot scan more meals today
-  </>
-
   if (isEmptyProfile)
     return (
-      <div className="flex items-center justify-center min-h-screen p-4 bg-white dark:bg-black">
-        <Card className="w-full max-w-md bg-white/95 dark:bg-black/95 backdrop-blur-xl border-0 shadow-2xl shadow-gray-200/50 dark:shadow-black/50">
+      <div className="flex items-center justify-center min-h-screen p-4 bg-background">
+        <Card className="w-full max-w-md bg-card border border-border shadow-lg">
           <CardContent className="p-8 text-center">
-            {/* Icon */}
             <div className="mb-6">
-              <div className="w-16 h-16 mx-auto bg-black dark:bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-gray-500/25 dark:shadow-white/20">
-                <User className="w-8 h-8 text-white dark:text-black" />
+              <div className="w-16 h-16 mx-auto bg-primary rounded-xl flex items-center justify-center shadow-sm">
+                <User className="w-8 h-8 text-primary-foreground" />
               </div>
             </div>
 
-            {/* Content */}
             <div className="mb-8">
-              <h1 className="text-2xl font-semibold text-black dark:text-white mb-3 tracking-tight">
-                Complete Your Profile
-              </h1>
-              <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+              <h1 className="text-2xl font-semibold text-foreground mb-3 font-heading">Complete Your Profile</h1>
+              <p className="text-muted-foreground leading-relaxed font-body">
                 Set up your profile to personalize your experience and connect with others.
               </p>
             </div>
 
-            {/* Actions */}
             <div className="space-y-3">
               <Button
                 onClick={handleSetupProfile}
-                className="w-full h-12 bg-black hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-200 text-white dark:text-black font-medium rounded-xl transition-all duration-200 shadow-lg shadow-gray-500/25 dark:shadow-white/20 hover:shadow-xl hover:shadow-gray-500/30 dark:hover:shadow-white/30 flex items-center justify-center gap-2"
+                className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2"
               >
                 Set Up Profile
                 <ArrowRight className="w-4 h-4" />
@@ -362,7 +320,7 @@ export default function CameraPage() {
   return (
     <main
       ref={containerRef}
-      className="fixed inset-0 text-black bg-white dark:bg-black dark:text-neutral-50"
+      className="fixed inset-0 text-foreground bg-background"
       style={
         {
           paddingTop: "env(safe-area-inset-top)",
@@ -379,13 +337,13 @@ export default function CameraPage() {
         <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 h-full w-full object-cover" />
       </div>
 
-      {/* Light, subtle vignette overlay */}
+      {/* Subtle vignette overlay */}
       <div
         className="pointer-events-none absolute inset-0 z-10"
         aria-hidden="true"
         style={{
           background:
-            "radial-gradient(120% 80% at 50% 40%, rgba(0,0,0,0.06) 20%, rgba(0,0,0,0.12) 70%, rgba(0,0,0,0.18) 100%)",
+            "radial-gradient(120% 80% at 50% 40%, rgba(0,0,0,0.05) 20%, rgba(0,0,0,0.1) 70%, rgba(0,0,0,0.15) 100%)",
         }}
       />
 
@@ -401,18 +359,17 @@ export default function CameraPage() {
               type="button"
               aria-label="Back"
               onClick={() => {
-          
-                cleanupCamera() 
+                cleanupCamera()
                 router.push("/home")
               }}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/70 text-neutral-800 shadow-sm backdrop-blur-md hover:bg-white transition active:scale-95 dark:border-white/10 dark:bg-neutral-900/70 dark:text-neutral-200 dark:hover:bg-neutral-900"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card/90 text-foreground shadow-sm backdrop-blur-md hover:bg-card transition active:scale-95"
             >
               <ChevronLeft className="h-5 w-5" />
               <span className="sr-only">Back</span>
             </button>
 
-            <div className="rounded-full bg-white/70 backdrop-blur-md px-4 py-2 shadow-sm border border-black/10 dark:bg-neutral-900/70 dark:border-white/10">
-              <span className="font-semibold tracking-wide">Calari</span>
+            <div className="rounded-full bg-card/90 backdrop-blur-md px-4 py-2 shadow-sm border border-border">
+              <span className="font-semibold tracking-wide font-heading">Calari</span>
             </div>
 
             <Button
@@ -420,7 +377,7 @@ export default function CameraPage() {
               onClick={openManualCard}
               variant="secondary"
               aria-label="Enter food manually"
-              className="h-10 rounded-full border border-black/10 bg-white/70 text-neutral-800 shadow-sm backdrop-blur-md hover:bg-white transition active:scale-95 dark:border-white/10 dark:bg-neutral-900/70 dark:text-neutral-200 dark:hover:bg-neutral-900"
+              className="h-10 rounded-full border border-border bg-card/90 text-foreground shadow-sm backdrop-blur-md hover:bg-muted transition active:scale-95"
             >
               <Edit3 className="h-4 w-4" />
             </Button>
@@ -429,7 +386,7 @@ export default function CameraPage() {
       </header>
 
       {/* Flash overlay */}
-      {flash ? <div className="pointer-events-none absolute inset-0 z-40 bg-white/90" /> : null}
+      {flash ? <div className="pointer-events-none absolute inset-0 z-40 bg-background/90" /> : null}
 
       {/* Shutter Button */}
       <div
@@ -444,31 +401,24 @@ export default function CameraPage() {
           onClick={capturePhoto}
           disabled={isCardOpen || uploading || analyzing}
           aria-disabled={isCardOpen || uploading || analyzing}
-          className="group relative h-20 w-20 select-none rounded-full border border-black/10 bg-white/80 shadow-lg backdrop-blur-xl transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-neutral-900/80 dark:text-neutral-200 dark:hover:bg-neutral-900"
-          style={{
-            boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.9), 0 8px 28px rgba(0,0,0,0.18)",
-          }}
+          className="group relative h-20 w-20 select-none rounded-full border-2 border-border bg-card/95 shadow-lg backdrop-blur-xl transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 hover:bg-card"
         >
           {/* Show upload progress in button */}
           {uploading && (
-            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-500 animate-spin" />
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-secondary animate-spin" />
           )}
 
           {/* Show analysis progress in button */}
           {analyzing && (
-            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-green-500 animate-spin" />
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-accent animate-spin" />
           )}
 
-          <span
-            className="pointer-events-none absolute inset-[-6px] rounded-full bg-emerald-400/10 blur-md opacity-0 group-hover:opacity-100 transition animate-[pulseSoft_2.4s_ease-in-out_infinite]"
-            aria-hidden="true"
-          />
-          <span className="absolute inset-2 rounded-full bg-white transition group-active:scale-95 dark:bg-neutral-800" />
+          <span className="absolute inset-2 rounded-full bg-background transition group-active:scale-95 shadow-sm" />
           <span className="absolute inset-0 grid place-items-center" />
         </button>
       </div>
 
-      {/* Bottom-sheet Card (Simplified Analysis results) */}
+      {/* Bottom-sheet Card */}
       <div
         className={`absolute inset-x-0 bottom-0 z-50 transform transition-transform duration-300 ease-out will-change-transform ${
           isCardOpen ? "translate-y-0" : "translate-y-full"
@@ -478,23 +428,23 @@ export default function CameraPage() {
         aria-hidden={!isCardOpen}
       >
         <div
-          className="w-full rounded-t-3xl bg-white/80 backdrop-blur-md shadow-2xl border-t border-neutral-200 dark:bg-neutral-900/80 dark:border-neutral-800"
+          className="w-full rounded-t-2xl bg-card/95 backdrop-blur-md shadow-2xl border-t border-border"
           style={{
-            height: "40vh", // Reduced height for simplified content
+            height: "40vh",
             paddingBottom: "calc(env(safe-area-inset-bottom) + var(--bottom-ui, 24px))",
           }}
         >
           {/* Card header with close */}
           <div className="relative flex items-center px-4 pt-3 pb-2">
             <div
-              className="absolute left-1/2 top-2 h-1.5 w-12 -translate-x-1/2 rounded-full bg-neutral-200 dark:bg-neutral-700"
+              className="absolute left-1/2 top-2 h-1.5 w-12 -translate-x-1/2 rounded-full bg-muted"
               aria-hidden="true"
             />
             <button
               type="button"
               aria-label="Close"
               onClick={closeCard}
-              className="ml-auto inline-flex items-center justify-center rounded-full p-2 text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100 transition dark:text-neutral-300 dark:hover:text-neutral-100 dark:hover:bg-neutral-800"
+              className="ml-auto inline-flex items-center justify-center rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition"
             >
               <X className="h-5 w-5" />
             </button>
@@ -503,61 +453,55 @@ export default function CameraPage() {
           {/* Content area */}
           <div className="h-[calc(40vh-56px)] overflow-auto px-4 pb-4">
             {uploading ? (
-              // Upload progress
               <div className="space-y-4">
                 <div className="text-center">
-                  <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
-                  <p className="text-lg font-medium">Just a second...</p>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
+                  <div className="animate-spin w-8 h-8 border-4 border-secondary border-t-transparent rounded-full mx-auto mb-4" />
+                  <p className="text-lg font-medium font-heading">Just a second...</p>
+                  <div className="w-full bg-muted rounded-full h-2 mt-3">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      className="bg-secondary h-2 rounded-full transition-all duration-300"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <p className="text-sm text-gray-600 mt-2">{progress}%</p>
+                  <p className="text-sm text-muted-foreground mt-2 font-body">{progress}%</p>
                 </div>
               </div>
             ) : analyzing ? (
-              // Analysis progress
               <div className="space-y-4">
                 <div className="text-center">
-                  <div className="animate-spin w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-4" />
-                  <p className="text-lg font-medium">Almost there</p>
-                  <p className="text-sm text-gray-600">Identifying ingredients and calculating nutrition</p>
+                  <div className="animate-spin w-8 h-8 border-4 border-accent border-t-transparent rounded-full mx-auto mb-4" />
+                  <p className="text-lg font-medium font-heading">Almost there</p>
+                  <p className="text-sm text-muted-foreground font-body">
+                    Identifying ingredients and calculating nutrition
+                  </p>
                 </div>
               </div>
             ) : uploadError || analysisError ? (
               <div className="space-y-4">
                 <div className="text-center">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center">
-                    <AlertCircle className="w-8 h-8 text-red-500" />
+                  <div className="w-16 h-16 mx-auto mb-4 bg-destructive/10 rounded-full flex items-center justify-center">
+                    <AlertCircle className="w-8 h-8 text-destructive" />
                   </div>
-                  <h3 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-2">
+                  <h3 className="text-lg font-semibold text-destructive mb-2 font-heading">
                     {uploadError ? "Upload Failed" : "Analysis Failed"}
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
+                  <p className="text-sm text-muted-foreground mb-4 leading-relaxed font-body">
                     {uploadError
                       ? "We couldn't upload your image. Please check your connection and try again."
                       : "We couldn't analyze your food. Please try taking another photo or enter the details manually."}
                   </p>
-                  {/* Error details (for debugging) */}
                   {(uploadError || analysisError) && (
-                    <details className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                      <summary className="cursor-pointer hover:text-gray-700 dark:hover:text-gray-300">
-                        Technical details
-                      </summary>
-                      <p className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded text-left font-mono">
-                        {uploadError || analysisError}
-                      </p>
+                    <details className="text-xs text-muted-foreground mb-4">
+                      <summary className="cursor-pointer hover:text-foreground font-body">Technical details</summary>
+                      <p className="mt-2 p-2 bg-muted rounded text-left font-mono">{uploadError || analysisError}</p>
                     </details>
                   )}
                 </div>
 
-                {/* Action buttons */}
                 <div className="space-y-2">
                   <Button
                     onClick={handleRetry}
-                    className="w-full h-11 rounded-xl bg-red-500 hover:bg-red-600 text-white transition flex items-center justify-center gap-2"
+                    className="w-full h-11 rounded-lg bg-destructive hover:bg-destructive/90 text-destructive-foreground transition flex items-center justify-center gap-2"
                     disabled={uploading || analyzing}
                   >
                     <RefreshCw className="w-4 h-4" />
@@ -569,22 +513,19 @@ export default function CameraPage() {
                       closeCard()
                       openManualCard()
                     }}
-                    className="w-full h-11 rounded-xl border-2 border-neutral-300 hover:bg-neutral-50 transition dark:border-neutral-600 dark:hover:bg-neutral-800"
+                    className="w-full h-11 rounded-lg border border-border hover:bg-muted transition"
                   >
                     Enter Manually Instead
                   </Button>
                 </div>
               </div>
             ) : analysisResult?.success ? (
-              // Simplified Analysis results - Only name, quantity, and macros
               <div className="space-y-4">
-                {/* Food name and quantity */}
                 <div className="text-center">
-                  <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">{currentFood.name}</h3>
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">{currentFood.quantity}</p>
+                  <h3 className="text-xl font-semibold text-foreground font-heading">{currentFood.name}</h3>
+                  <p className="text-sm text-muted-foreground mt-1 font-body">{currentFood.quantity}</p>
                 </div>
 
-                {/* Macros only */}
                 <div className="grid grid-cols-2 gap-3">
                   <SimpleMacro label="Calories" value={currentMacros.calories} unit="kcal" />
                   <SimpleMacro label="Protein" value={currentMacros.protein} unit="g" />
@@ -592,11 +533,10 @@ export default function CameraPage() {
                   <SimpleMacro label="Fat" value={currentMacros.fat} unit="g" />
                 </div>
 
-                {/* Action buttons */}
                 <div className="space-y-2 pt-2">
                   <Button
                     variant="outline"
-                    className="w-full h-11 rounded-xl border-2 border-neutral-300 hover:bg-neutral-50 transition dark:border-neutral-600 dark:hover:bg-neutral-800 bg-transparent"
+                    className="w-full h-11 rounded-lg border border-border hover:bg-muted transition bg-transparent"
                     onClick={handleViewFullAnalysis}
                   >
                     Track
@@ -604,21 +544,20 @@ export default function CameraPage() {
                 </div>
               </div>
             ) : (
-              // Initial skeleton
               <div className="space-y-4 animate-pulse">
                 <div className="text-center space-y-2">
-                  <div className="h-6 w-2/3 rounded bg-neutral-200 dark:bg-neutral-800 mx-auto" />
-                  <div className="h-4 w-1/2 rounded bg-neutral-200 dark:bg-neutral-800 mx-auto" />
+                  <div className="h-6 w-2/3 rounded bg-muted mx-auto" />
+                  <div className="h-4 w-1/2 rounded bg-muted mx-auto" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="h-16 rounded-lg bg-neutral-200 dark:bg-neutral-800" />
-                  <div className="h-16 rounded-lg bg-neutral-200 dark:bg-neutral-800" />
-                  <div className="h-16 rounded-lg bg-neutral-200 dark:bg-neutral-800" />
-                  <div className="h-16 rounded-lg bg-neutral-200 dark:bg-neutral-800" />
+                  <div className="h-16 rounded-lg bg-muted" />
+                  <div className="h-16 rounded-lg bg-muted" />
+                  <div className="h-16 rounded-lg bg-muted" />
+                  <div className="h-16 rounded-lg bg-muted" />
                 </div>
                 <div className="space-y-2">
-                  <div className="h-11 w-full rounded-lg bg-neutral-200 dark:bg-neutral-800" />
-                  <div className="h-11 w-full rounded-lg bg-neutral-200 dark:bg-neutral-800" />
+                  <div className="h-11 w-full rounded-lg bg-muted" />
+                  <div className="h-11 w-full rounded-lg bg-muted" />
                 </div>
               </div>
             )}
@@ -626,7 +565,7 @@ export default function CameraPage() {
         </div>
       </div>
 
-      {/* Manual entry card (unchanged) */}
+      {/* Manual entry card */}
       <div
         className={`absolute inset-x-0 bottom-0 z-50 transform transition-transform duration-300 ease-out will-change-transform ${
           isManualCardOpen ? "translate-y-0" : "translate-y-full"
@@ -636,7 +575,7 @@ export default function CameraPage() {
         aria-hidden={!isManualCardOpen}
       >
         <div
-          className="w-full rounded-t-3xl bg-white/80 backdrop-blur-md shadow-2xl border-t border-neutral-200 dark:bg-neutral-900/80 dark:border-neutral-800"
+          className="w-full rounded-t-2xl bg-card/95 backdrop-blur-md shadow-2xl border-t border-border"
           style={{
             height: "50vh",
             paddingBottom: "calc(env(safe-area-inset-bottom) + var(--bottom-ui, 24px))",
@@ -644,14 +583,14 @@ export default function CameraPage() {
         >
           <div className="relative flex items-center px-4 pt-3 pb-2">
             <div
-              className="absolute left-1/2 top-2 h-1.5 w-12 -translate-x-1/2 rounded-full bg-neutral-200 dark:bg-neutral-700"
+              className="absolute left-1/2 top-2 h-1.5 w-12 -translate-x-1/2 rounded-full bg-muted"
               aria-hidden="true"
             />
             <button
               type="button"
               aria-label="Close manual entry"
               onClick={closeManualCard}
-              className="ml-auto inline-flex items-center justify-center rounded-full p-2 text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100 transition dark:text-neutral-300 dark:hover:text-neutral-100 dark:hover:bg-neutral-800"
+              className="ml-auto inline-flex items-center justify-center rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition"
             >
               <X className="h-5 w-5" />
             </button>
@@ -660,7 +599,7 @@ export default function CameraPage() {
           <div className="h-[calc(50vh-56px)] overflow-auto px-4 pb-4">
             <div className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="manual-food" className="text-neutral-700 dark:text-neutral-300">
+                <Label htmlFor="manual-food" className="text-foreground font-body">
                   What are you eating?
                 </Label>
                 <Input
@@ -668,13 +607,13 @@ export default function CameraPage() {
                   placeholder="e.g. Grilled Chicken Breast"
                   value={manualFoodName}
                   onChange={(e: any) => setManualFoodName(e.target.value)}
-                  className="h-11 rounded-xl bg-white/90 border-neutral-200 shadow-sm dark:bg-neutral-900/60 dark:border-neutral-800"
+                  className="h-11 rounded-lg bg-input border-border shadow-sm"
                   disabled={analyzing}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="manual-qty" className="text-neutral-700 dark:text-neutral-300">
+                <Label htmlFor="manual-qty" className="text-foreground font-body">
                   Quantity
                 </Label>
                 <Input
@@ -682,19 +621,19 @@ export default function CameraPage() {
                   placeholder="e.g. 200g, 1 cup, 1 medium"
                   value={manualQuantity}
                   onChange={(e) => setManualQuantity(e.target.value)}
-                  className="h-11 rounded-xl bg-white/90 border-neutral-200 shadow-sm dark:bg-neutral-900/60 dark:border-neutral-800"
+                  className="h-11 rounded-lg bg-input border-border shadow-sm"
                   disabled={analyzing}
                 />
               </div>
 
               <Button
-                className="w-full h-11 rounded-xl bg-black text-white hover:bg-black/90 transition shadow-sm dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200 disabled:opacity-50"
+                className="w-full h-11 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition shadow-sm disabled:opacity-50"
                 onClick={handleManualAnalysis}
                 disabled={!manualFoodName.trim() || !manualQuantity.trim() || analyzing}
               >
                 {analyzing ? (
                   <div className="flex items-center gap-2">
-                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                    <div className="animate-spin w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full" />
                     Analyzing...
                   </div>
                 ) : (
@@ -705,8 +644,6 @@ export default function CameraPage() {
           </div>
         </div>
       </div>
-
-      <style>{`@keyframes pulseSoft { 0%, 100% { transform: scale(0.98); opacity: 0.55; } 50% { transform: scale(1.04); opacity: 0.85; } }`}</style>
     </main>
   )
 }
@@ -722,12 +659,11 @@ function SimpleMacro({
   unit: string
 }) {
   return (
-    <div className="text-center p-3 rounded-lg bg-neutral-50 border border-neutral-200 dark:bg-neutral-800 dark:border-neutral-700">
-      <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">{label}</div>
-      <div className="text-xl font-bold text-neutral-900 dark:text-neutral-100 mt-1">
+    <div className="text-center p-3 rounded-lg bg-muted border border-border shadow-sm">
+      <div className="text-sm font-medium text-muted-foreground font-body">{label}</div>
+      <div className="text-xl font-bold text-foreground mt-1 font-heading">
         {value}
-        <span className="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-1">{unit}
-          </span>
+        <span className="text-xs font-normal text-muted-foreground ml-1 font-body">{unit}</span>
       </div>
     </div>
   )

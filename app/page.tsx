@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useUser as useClerkUser, SignedIn, SignedOut, SignInButton, useAuth } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -10,12 +10,16 @@ import { useUserStore } from "@/store/user-store"
 import { useGetUser, useUpsertUser } from "@/hooks/use-user"
 import { useMealCountStore } from "@/store/use-count"
 import { useRouter } from "next/navigation"
+import { InstallButton } from "@/components/install-pwa"
+import { InstallInstructions } from "@/components/install-instructions"
+import CalariLoading from "@/components/ui/loading"
 
 export default function LandingApp() {
   const { user: clerkUser } = useClerkUser()
   const savedUser = useUserStore((state) => state.user)
   const setUser = useUserStore((state) => state.setUser)
   const clearUser = useUserStore((state) => state.clearUser)
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
 
   const email = clerkUser?.primaryEmailAddress?.emailAddress
   const { data: fetchedUser, error: fetchError, loading } = useGetUser(email)
@@ -31,6 +35,15 @@ export default function LandingApp() {
       })
     })
   }
+
+  useEffect(() => {
+    // Show loading for at least 1 second, then check if auth state is determined
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false)
+    }, 1500)
+
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     if (!clerkUser && savedUser) {
@@ -64,6 +77,15 @@ export default function LandingApp() {
     }
   }, [upsertData, setUser])
 
+  useEffect(() => {
+    if (clerkUser && savedUser && !loading) {
+      onGoToApp()
+    }
+  }, [clerkUser, savedUser, loading])
+
+  if (isInitialLoading || (clerkUser && !savedUser && loading)) {
+    return <CalariLoading />
+  }
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -80,6 +102,12 @@ export default function LandingApp() {
                 </a>
                 <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
                   How it Works
+                </a>
+                <a
+                  href="#install-instructions"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  App
                 </a>
                 <a href="#testimonials" className="text-muted-foreground hover:text-foreground transition-colors">
                   Reviews
@@ -143,9 +171,15 @@ export default function LandingApp() {
                   </Button>
                 )}
               </SignedIn>
-              
+              <InstallButton />
             </div>
-            <p className="mt-4 text-sm text-muted-foreground">No credit card required • Free forever plan available</p>
+            <p className="mt-4 text-sm text-muted-foreground">
+              By clicking you agree to T&C • Free forever plan available
+            </p>
+
+            <div className="mt-8 flex justify-center">
+              <InstallInstructions />
+            </div>
           </div>
         </div>
 
@@ -185,11 +219,11 @@ export default function LandingApp() {
                 title="Smart Recommendations"
                 description="Get personalized meal suggestions and nutrition tips based on your goals and dietary preferences."
               />
-              <FeatureCard
+              {/* <FeatureCard
                 icon={<ListChecks className="h-6 w-6" />}
                 title="Progress Tracking"
                 description="Beautiful dashboards and insights help you stay motivated and on track with your health goals."
-              />
+              /> */}
               <FeatureCard
                 icon={<Zap className="h-6 w-6" />}
                 title="Lightning Fast"
@@ -200,11 +234,11 @@ export default function LandingApp() {
                 title="Privacy First"
                 description="Your health data stays secure with end-to-end encryption and complete privacy controls."
               />
-              <FeatureCard
+              {/* <FeatureCard
                 icon={<Users className="h-6 w-6" />}
                 title="Community Support"
                 description="Connect with like-minded individuals and share your journey with our supportive community."
-              />
+              /> */}
             </dl>
           </div>
         </div>
@@ -245,40 +279,7 @@ export default function LandingApp() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Loved by thousands of users
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground">
-              See what our community is saying about their Calari experience.
-            </p>
-          </div>
-
-          <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-8 lg:mx-0 lg:max-w-none lg:grid-cols-3">
-            <TestimonialCard
-              quote="Calari has completely changed how I think about nutrition tracking. The photo recognition is incredibly accurate, and I love how fast it is."
-              author="Arshia Gulati"
-              role="Fitness Enthusiast"
-              rating={5}
-            />
-            <TestimonialCard
-              quote="As a busy parent, I needed something quick and easy. Calari delivers exactly that - no more spending 10 minutes logging every meal."
-              author="Sushant Mahajan"
-              role="Working Parent"
-              rating={5}
-            />
-            <TestimonialCard
-              quote="The AI recommendations have helped me discover new healthy foods I never would have tried. It's like having a nutritionist in my pocket."
-              author="Jaskirat Ahuja"
-              role="Health Coach"
-              rating={5}
-            />
-          </div>
-        </div>
-      </section>
+     
 
       {/* CTA Section */}
       <section className="bg-primary">
@@ -329,13 +330,18 @@ export default function LandingApp() {
               <h3 className="text-xl font-bold text-primary">Calari</h3>
             </div>
             <div className="flex items-center space-x-6 text-sm text-muted-foreground">
-              <a href="#" className="hover:text-foreground transition-colors">
+              <a href="/privacy" className="hover:text-foreground transition-colors">
                 Privacy Policy
               </a>
-              <a href="#" className="hover:text-foreground transition-colors">
+              <a href="/terms" className="hover:text-foreground transition-colors">
                 Terms of Service
               </a>
-              <a href="#" className="hover:text-foreground transition-colors">
+              <a
+                href="mailto:admin@polygot.tech"
+                target="_blank"
+                className="hover:text-foreground transition-colors"
+                rel="noreferrer"
+              >
                 Contact
               </a>
             </div>

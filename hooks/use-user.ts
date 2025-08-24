@@ -111,3 +111,68 @@ export function useGetUser(email?: string) {
   return { data, loading, error };
 }
 
+
+// Define the subscription type based on your database schema
+export interface UserSubscription {
+  id: string;
+  user_id: string;
+  plan: "basic" | "pro" | "creator";
+  start_date: string;
+  end_date: string;
+  status: "active" | "expired";
+  created_at: string;
+}
+
+interface SubscriptionsResponse {
+  subscriptions: UserSubscription[];
+}
+
+export function useUserSubscriptions() {
+  const { getToken } = useAuth();
+  const [subscriptions, setSubscriptions] = useState<UserSubscription[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchSubscriptions = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getToken();
+      const res = await api.get<SubscriptionsResponse>("/users/subscriptions", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      console.log(res.data)
+      setSubscriptions(res.data.subscriptions);
+    } catch (err) {
+      const axiosErr = err as AxiosError<any>;
+      setError(axiosErr.response?.data?.error || axiosErr.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [getToken]);
+
+  useEffect(() => {
+    fetchSubscriptions();
+  }, [fetchSubscriptions]);
+
+  // Get current active subscription
+  const activeSubscription = subscriptions?.find(sub => sub.status === "active") || null;
+
+  // Get current plan from active subscription
+  const currentPlan = activeSubscription?.plan || null;
+
+  // Check if user has active subscription
+  const hasActiveSubscription = !!activeSubscription;
+
+  return { 
+    subscriptions, 
+    activeSubscription,
+    currentPlan,
+    hasActiveSubscription,
+    loading, 
+    error,
+    refetch: fetchSubscriptions
+  };
+}

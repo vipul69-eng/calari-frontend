@@ -5,23 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
-import {
-  Bell,
-  Check,
-  CreditCard,
-  Crown,
-  DollarSign,
-  LogOut,
-  Moon,
-  Music2,
-  Receipt,
-  Ruler,
-  Shield,
-  Sparkles,
-  Sun,
-  User,
-  Wallet,
-} from "lucide-react"
+import { Check, CreditCard, Crown, DollarSign, LogOut, Moon, Music2, Sparkles, Sun, User, Wallet } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,13 +20,12 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@clerk/nextjs"
 import { useUserStore } from "@/store/user-store"
 import { useUpsertUser } from "@/hooks/use-user"
+import { PaymentDetailsModal } from "@/components/payment-modal"
 
-type Plan = "basic" | "pro"
 type Units = "metric" | "imperial"
 
 export default function SettingsPage() {
@@ -50,20 +33,21 @@ export default function SettingsPage() {
   const { theme, setTheme, systemTheme } = useTheme()
   const { signOut } = useAuth()
 
-  
   const user = useUserStore((state) => state.user)
-  const setUser = useUserStore((state) => state.setUser)
   const clearUser = useUserStore((state) => state.clearUser)
-  const { upsertUser } = useUpsertUser()
+  useUpsertUser()
 
   const [notifications, setNotifications] = useState(true)
   const [units, setUnits] = useState<Units>("metric")
+  const [showPaymentDetails, setShowPaymentDetails] = useState(false)
 
   const plan = user?.plan || "basic"
-const onProClicked=()=>{
-    const url = "https://test.checkout.dodopayments.com/buy/pdt_vmZWtlgMx8N9tTi5ClSqb?quantity=1&redirect_url=https://b9be63be7af7.ngrok-free.app%2Fpayments";
-    localStorage.setItem("dodo-user-calari",user?.id as string)
-    window.open(url,"_blank", "noopener,noreferrer");
+  const onProClicked = () => {
+    const url =
+      "https://checkout.dodopayments.com/buy/pdt_cjUSGLTRN5sjRyU8MSZPs?quantity=1&redirect_url=https://calari.in%2Fpayments"
+    // const url = "https://checkout.dodopayments.com/buy/pdt_7or034UBldrgQUgpszH3d?quantity=1&redirect_url=https://calari.in%2Fpayments"//test payment 5rs
+    localStorage.setItem("dodo-user-calari", user?.id as string)
+    window.open(url, "_blank", "noopener,noreferrer")
   }
   const themeLabel = useMemo(() => {
     if (theme === "system") {
@@ -109,33 +93,18 @@ const onProClicked=()=>{
     router.push("/")
   }
 
-  async function onSelectPlan(nextPlan: Plan) {
-    haptic(12)
-
-    if (!user) return
-
-    try {
-      await upsertUser({
-        email: user.email,
-        plan: nextPlan,
-        profile: user.profile || {},
-      })
-
-      const updatedUser = {
-        ...user,
-        plan: nextPlan,
-      }
-      setUser(updatedUser)
-    } catch {}
-  }
-
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-2xl px-4 py-8 space-y-8">
         <div className="text-center space-y-2">
-          <h1 onClick={()=>{
-            router.push("/payments")
-          }} className="text-3xl font-heading text-foreground">Settings</h1>
+          <h1
+            onClick={() => {
+              router.push("/payments")
+            }}
+            className="text-3xl font-heading text-foreground"
+          >
+            Settings
+          </h1>
           <p className="text-muted-foreground">Manage your account preferences and settings</p>
         </div>
 
@@ -151,12 +120,8 @@ const onProClicked=()=>{
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border">
               <div>
-                <p className="font-medium text-foreground">{user?.email || "Not signed in"}</p>
+                <p className="font-medium text-foreground max-w-50">{user?.email || "Not signed in"}</p>
                 <p className="text-sm text-muted-foreground">Account email</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-primary capitalize">{plan} Plan</p>
-                <p className="text-xs text-muted-foreground">Current subscription</p>
               </div>
             </div>
           </CardContent>
@@ -202,8 +167,6 @@ const onProClicked=()=>{
           </CardContent>
         </Card>
 
-
-
         <Card className="border-border bg-card shadow-sm">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
@@ -214,31 +177,35 @@ const onProClicked=()=>{
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {user?.plan=="basic" &&<SettingItem
-              icon={<DollarSign className="h-5 w-5 text-primary" />}
-              title="Get Calari Pro"
-              subtitle="Get access to latest features"
-              right={
-                <Button onClick={onProClicked} variant="outline" size="sm" className="text-xs bg-transparent">
-                  Go Pro
-                </Button>
-              }
-            />}
+            {user?.plan == "basic" && (
+              <SettingItem
+                icon={<DollarSign className="h-5 w-5 text-primary" />}
+                title="Get Calari Pro"
+                subtitle="Get access to latest features"
+                right={
+                  <Button onClick={onProClicked} variant="outline" size="sm" className="text-xs bg-transparent">
+                    Go Pro
+                  </Button>
+                }
+              />
+            )}
             <SettingItem
               icon={<CreditCard className="h-5 w-5 text-primary" />}
-              title="Plan Details"
-              subtitle="All the details related to your plan."
+              title="Payment Details"
+              subtitle="View your subscription and billing information"
               right={
-                <Button variant="outline" size="sm" className="text-xs bg-transparent">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs bg-transparent"
+                  onClick={() => setShowPaymentDetails(true)}
+                >
                   View
                 </Button>
               }
             />
-            
           </CardContent>
         </Card>
-
-       
 
         {/* Subscription Plans */}
         <Card className="border-border bg-card shadow-sm">
@@ -250,14 +217,10 @@ const onProClicked=()=>{
                 </div>
                 <CardTitle className="text-lg font-heading">Subscription Plans</CardTitle>
               </div>
-              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                Cancel anytime
-              </span>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <PlanOption
-              icon={<Music2 className="h-5 w-5" />}
               title="Basic"
               price="0 USD"
               cadence=""
@@ -265,16 +228,14 @@ const onProClicked=()=>{
               selected={plan === "basic"}
             />
             <PlanOption
-              icon={<Sparkles className="h-5 w-5" />}
               title="Pro"
               price="₹199"
               cadence="/month"
-              features={["29 tracks daily", "Profile-based recommendations","All future pro features"]}
+              features={["29 tracks daily", "Profile-based recommendations", "All future pro features"]}
               selected={plan === "pro"}
               accent
               badge="Recommended"
             />
-            
           </CardContent>
         </Card>
 
@@ -319,6 +280,9 @@ const onProClicked=()=>{
           {new Date().getFullYear()}
         </div>
       </div>
+
+      {/* PaymentDetailsModal component */}
+      <PaymentDetailsModal isOpen={showPaymentDetails} onClose={() => setShowPaymentDetails(false)} />
     </main>
   )
 }
@@ -344,44 +308,7 @@ function SettingItem(props: {
   )
 }
 
-function UnitsPill(props: {
-  value?: Units
-  onChange?: (value: Units) => void
-}) {
-  const value = props.value ?? "metric"
-  const onChange = props.onChange ?? (() => {})
-  return (
-    <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-background p-1 text-xs">
-      <button
-        type="button"
-        onClick={() => onChange("metric")}
-        className={cn(
-          "rounded-md px-3 py-1.5 transition-colors font-medium",
-          value === "metric"
-            ? "bg-primary text-primary-foreground"
-            : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-        )}
-      >
-        Metric
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange("imperial")}
-        className={cn(
-          "rounded-md px-3 py-1.5 transition-colors font-medium",
-          value === "imperial"
-            ? "bg-primary text-primary-foreground"
-            : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-        )}
-      >
-        Imperial
-      </button>
-    </div>
-  )
-}
-
 function PlanOption(props: {
-  icon: React.ReactNode
   title: string
   price: string
   cadence?: string
@@ -391,7 +318,7 @@ function PlanOption(props: {
   badge?: string
   onSelect?: () => void
 }) {
-  const { icon, title, price, cadence, features, selected, accent, badge, onSelect } = props
+  const { title, price, cadence, features, selected, accent, badge, onSelect } = props
 
   return (
     <div
@@ -403,7 +330,7 @@ function PlanOption(props: {
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-primary/10 p-2 text-primary">{icon}</div>
+          
           <div>
             <div className="flex items-center gap-2">
               <div className="font-semibold text-foreground">{title}</div>
@@ -417,14 +344,16 @@ function PlanOption(props: {
             </div>
           </div>
         </div>
-        {selected && <Button
-          size="sm"
-          className={cn(selected ? "bg-primary text-primary-foreground" : "")}
-          variant={selected ? "default" : "outline"}
-          onClick={onSelect}
-        >
-          Current
-        </Button>}
+        {selected && (
+          <Button
+            size="sm"
+            className={cn(selected ? "bg-primary text-primary-foreground" : "")}
+            variant={selected ? "default" : "outline"}
+            onClick={onSelect}
+          >
+            Current
+          </Button>
+        )}
       </div>
 
       <ul className="mt-4 space-y-2">

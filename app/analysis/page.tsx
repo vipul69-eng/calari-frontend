@@ -3,7 +3,6 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { CheckCircle2, X, Lightbulb, TrendingUp, Sparkles, Plus, Minus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import { useUserStore } from "@/store/user-store"
@@ -187,8 +186,6 @@ export default function FoodAnalysisPage() {
 
   const { user } = useUserStore()
 
-  // Daily summary for display
-
   const openAddSheet = useCallback(
     (item: { name: string; img: string; delta: Macros; reason: string; quantity: string }) => {
       setSelected(item)
@@ -273,7 +270,6 @@ export default function FoodAnalysisPage() {
       totals, // Total macros including all added items
       analysisData?.analysisResult,
       analysisData?.photoUrl,
-      // Remove the token parameter from here
     )
     const currentDate = new Date().toISOString().split("T")[0]
 
@@ -299,12 +295,12 @@ export default function FoodAnalysisPage() {
   // Show loading state if no analysis data
   if (!analysisData) {
     return (
-      <main className="relative min-h-screen bg-gradient-to-br from-background via-card/30 to-background text-foreground flex items-center justify-center">
+      <main className="relative min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
           <div className="space-y-2">
-            <h2 className="text-xl font-bold font-heading">Analyzing your food...</h2>
-            <p className="text-muted-foreground font-body">This won&apos;t take long</p>
+            <h2 className="text-xl font-bold">Analyzing your food...</h2>
+            <p className="text-muted-foreground">This won&apos;t take long</p>
           </div>
         </div>
       </main>
@@ -313,7 +309,7 @@ export default function FoodAnalysisPage() {
 
   return (
     <main
-      className="relative min-h-screen bg-gradient-to-br from-background via-card/20 to-background text-foreground"
+      className="relative min-h-screen bg-background text-foreground"
       style={{
         paddingTop: "env(safe-area-inset-top)",
         paddingBottom: "calc(env(safe-area-inset-bottom) + 72px)",
@@ -321,19 +317,17 @@ export default function FoodAnalysisPage() {
         paddingRight: "env(safe-area-inset-right)",
       }}
     >
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-xl border-b border-border/50 shadow-lg">
+      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-xl border-b border-border">
         <div className="mx-auto max-w-screen-sm px-4 py-4">
           <div className="flex items-center justify-between">
             <button
               onClick={() => router.back()}
-              className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors font-body"
+              className="text-muted-foreground hover:text-foreground transition-colors"
             >
               ← Back
             </button>
-            <div className="rounded-full bg-gradient-to-r from-primary/10 to-secondary/10 backdrop-blur px-4 py-2 border border-primary/20 shadow-sm">
-              <span className="text-sm font-semibold font-heading bg-secondary-foreground bg-clip-text text-transparent">
-                Food Analysis
-              </span>
+            <div className="bg-card px-4 py-2 rounded-lg border border-border">
+              <span className="text-sm font-semibold text-foreground">Food Analysis</span>
             </div>
           </div>
         </div>
@@ -342,57 +336,30 @@ export default function FoodAnalysisPage() {
       {/* Content */}
       <div className="mx-auto max-w-screen-sm px-4 pt-6 pb-24">
         <section aria-label="Food header" className="mb-8">
-          <div className="relative overflow-hidden rounded-3xl border border-border/50 bg-gradient-to-br from-card/80 via-background/50 to-card/30 shadow-xl backdrop-blur-sm">
-            <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-gradient-to-br from-primary/10 via-secondary/5 to-transparent blur-3xl" />
-            <div className="absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-gradient-to-tr from-secondary/10 via-primary/5 to-transparent blur-3xl" />
-
-            <div className="relative p-6">
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-3xl font-bold font-heading mb-2 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-                    {mealName}
-                  </h1>
-                  <p className="text-muted-foreground font-body flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                      <Sparkles className="w-3 h-3" />
-                      AI Analyzed
-                    </span>
-                    {combinedQuantity}
-                  </p>
-                </div>
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-3xl font-bold text-foreground mb-2">{mealName}</h1>
+                <p className="text-muted-foreground">{combinedQuantity}</p>
               </div>
-
-              {analysisData.photoUrl && (
-                <div className="relative h-56 w-full rounded-2xl overflow-hidden border border-border/50 shadow-lg mb-4">
-                  <Image
-                    src={analysisData.photoUrl || "/placeholder.svg"}
-                    alt="Captured food photo"
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-                </div>
-              )}
             </div>
           </div>
         </section>
 
         {addedItems.length > 0 && (
           <section aria-label="Added items" className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <Plus className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-bold font-heading">Added Items</h3>
+            <div className="mb-4">
+              <h3 className="text-lg font-bold text-foreground">Added Items</h3>
             </div>
             <div className="space-y-3">
               {addedItems.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-4 rounded-2xl border border-border/50 bg-gradient-to-r from-card/80 to-background/50 shadow-sm backdrop-blur-sm hover:shadow-md transition-all duration-200"
+                  className="flex items-center justify-between p-4 bg-card border border-border rounded-xl shadow-sm"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-base font-semibold text-foreground font-heading truncate">{item.name}</div>
-                    <div className="text-sm text-muted-foreground font-body">
+                    <div className="text-base font-semibold text-foreground truncate">{item.name}</div>
+                    <div className="text-sm text-muted-foreground">
                       {item.quantity} • +{item.macros.calories} kcal • {item.reason}
                     </div>
                   </div>
@@ -401,7 +368,7 @@ export default function FoodAnalysisPage() {
                     className="ml-3 p-2 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                     aria-label={`Remove ${item.name}`}
                   >
-                    <Minus className="h-4 w-4" />
+                    ×
                   </button>
                 </div>
               ))}
@@ -410,49 +377,34 @@ export default function FoodAnalysisPage() {
         )}
 
         <section aria-label="Macronutrient breakdown" className="mb-8">
-          <h3 className="text-lg font-bold font-heading mb-4 flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            Nutrition Breakdown
-          </h3>
+          <h3 className="text-lg font-bold text-foreground mb-4">Nutrition Breakdown</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <MacroCard label="Calories" value={totals.calories} unit="kcal" tone="primary" />
-            <MacroCard label="Fat" value={totals.fat} unit="g" tone="rose" />
-            <MacroCard label="Protein" value={totals.protein} unit="g" tone="emerald" />
-            <MacroCard label="Carbs" value={totals.carbs} unit="g" tone="sky" />
+            <MacroCard label="Calories" value={totals.calories} unit="kcal" />
+            <MacroCard label="Fat" value={totals.fat} unit="g" />
+            <MacroCard label="Protein" value={totals.protein} unit="g" />
+            <MacroCard label="Carbs" value={totals.carbs} unit="g" />
           </div>
         </section>
 
         {user?.plan !== "basic" ? (
           <section aria-label="Recommendation" className="mb-8">
-            <div
-              className={`rounded-3xl border shadow-lg p-6 flex items-start gap-4 backdrop-blur-sm ${
-                recommendation === "yes"
-                  ? "border-emerald-200/50 bg-gradient-to-br from-emerald-50/80 via-emerald-25/40 to-background/50 dark:border-emerald-900/50 dark:from-emerald-950/30 dark:via-emerald-950/10 dark:to-background/50"
-                  : "border-rose-200/50 bg-gradient-to-br from-rose-50/80 via-rose-25/40 to-background/50 dark:border-rose-900/50 dark:from-rose-950/30 dark:via-rose-950/10 dark:to-background/50"
-              }`}
-            >
-              <div
-                className={`p-3 rounded-2xl ${
-                  recommendation === "yes" ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-rose-100 dark:bg-rose-900/30"
-                }`}
-              >
-                {recommendation === "yes" ? (
-                  <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-                ) : (
-                  <X className="h-6 w-6 text-rose-600 dark:text-rose-400" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-lg font-bold font-heading mb-2">
-                  {recommendation === "yes" ? "✅ Recommended" : "⚠️ Consider Alternatives"}
+            <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+              <div className="flex items-start gap-4">
+                <div
+                  className={`w-3 h-3 rounded-full mt-2 ${recommendation === "yes" ? "bg-chart-1" : "bg-destructive"}`}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-lg font-bold text-foreground mb-2">
+                    {recommendation === "yes" ? "Recommended" : "Consider Alternatives"}
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">{recommendationText}</p>
+                  {analysisData?.analysisResult?.data?.suggestion?.recommendedQuantity && (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      <strong>Recommended quantity:</strong>{" "}
+                      {analysisData.analysisResult.data.suggestion.recommendedQuantity}
+                    </p>
+                  )}
                 </div>
-                <p className="text-foreground/80 font-body leading-relaxed">{recommendationText}</p>
-                {analysisData?.analysisResult?.data?.suggestion?.recommendedQuantity && (
-                  <p className="mt-3 text-sm text-muted-foreground font-body">
-                    <strong>Recommended quantity:</strong>{" "}
-                    {analysisData.analysisResult.data.suggestion.recommendedQuantity}
-                  </p>
-                )}
               </div>
             </div>
           </section>
@@ -460,18 +412,11 @@ export default function FoodAnalysisPage() {
 
         {user?.plan !== "basic" ? (
           <section aria-label="Completeness suggestions" className="mb-8">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="p-2 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30">
-                <Lightbulb className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold font-heading">
-                  {recommendation === "yes" ? "Complete Your Meal" : "Healthier Options"}
-                </h2>
-                <p className="text-sm text-muted-foreground font-body">
-                  AI-powered suggestions to optimize your nutrition
-                </p>
-              </div>
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-foreground mb-1">
+                {recommendation === "yes" ? "Complete Your Meal" : "Healthier Options"}
+              </h2>
+              <p className="text-sm text-muted-foreground">AI-powered suggestions to optimize your nutrition</p>
             </div>
 
             <div className="-mx-4 px-4">
@@ -480,9 +425,9 @@ export default function FoodAnalysisPage() {
                   <button
                     key={`${s.name}-${index}`}
                     onClick={() => openAddSheet(s)}
-                    className="snap-start w-[140px] shrink-0 rounded-3xl border border-border/50 bg-gradient-to-br from-card/90 via-background/50 to-card/30 backdrop-blur-sm shadow-lg p-4 text-left transition-all duration-200 hover:shadow-xl hover:scale-105 active:scale-95"
+                    className="snap-start w-[140px] shrink-0 bg-card border border-border rounded-2xl p-4 text-left shadow-sm transition-all duration-200 hover:shadow-md hover:scale-105 active:scale-95"
                   >
-                    <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-border/30 mb-3">
+                    <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-border mb-3">
                       <Image
                         src={s.img || "/placeholder.svg"}
                         alt={s.name}
@@ -491,14 +436,12 @@ export default function FoodAnalysisPage() {
                         unoptimized={s.img?.startsWith("blob:")}
                         sizes="140px"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
                     </div>
                     <div className="text-center">
-                      <div className="text-sm font-bold text-foreground truncate font-heading mb-1">{s.name}</div>
-                      <div className="text-xs text-muted-foreground font-body mb-2">+{s.delta.calories} kcal</div>
-                      <div className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                        <Plus className="w-3 h-3" />
-                        Add
+                      <div className="text-sm font-bold text-foreground truncate mb-1">{s.name}</div>
+                      <div className="text-xs text-muted-foreground mb-2">+{s.delta.calories} kcal</div>
+                      <div className="inline-flex items-center gap-1 bg-accent/10 text-accent px-2 py-1 rounded-full text-xs font-medium">
+                        + Add
                       </div>
                     </div>
                   </button>
@@ -510,7 +453,7 @@ export default function FoodAnalysisPage() {
 
         <div className="h-4" />
         <Button
-          className="w-full h-14 rounded-2xl bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:from-primary/90 hover:to-secondary/90 shadow-xl shadow-primary/25 font-semibold text-lg font-body disabled:opacity-50 transition-all duration-200"
+          className="w-full h-14 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm font-semibold text-lg disabled:opacity-50 transition-all duration-200"
           onClick={onTrack}
           disabled={isSyncing}
         >
@@ -520,10 +463,7 @@ export default function FoodAnalysisPage() {
               Tracking Meal...
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5" />
-              Track This Meal
-            </div>
+            "Add meal"
           )}
         </Button>
       </div>
@@ -546,9 +486,9 @@ export default function FoodAnalysisPage() {
           }`}
         >
           <div
-            className="mx-auto w-full max-w-screen-sm rounded-t-3xl bg-gradient-to-br from-background/95 via-card/90 to-background/95 backdrop-blur-xl shadow-2xl border-t border-border/50"
+            className="mx-auto w-full max-w-screen-sm bg-background rounded-t-3xl shadow-2xl border-t border-border"
             style={{
-              height: "50vh",
+              height: "70vh",
               paddingBottom: "env(safe-area-inset-bottom)",
             }}
             role="dialog"
@@ -560,36 +500,36 @@ export default function FoodAnalysisPage() {
                 className="absolute left-1/2 top-2 h-1.5 w-12 -translate-x-1/2 rounded-full bg-muted-foreground/30"
                 aria-hidden="true"
               />
-              <h3 className="text-lg font-bold font-heading">Add to Meal</h3>
+              <h3 className="text-lg font-bold text-foreground">Add to Meal</h3>
               <button
                 type="button"
                 aria-label="Close"
                 onClick={closeAddSheet}
                 className="ml-auto inline-flex items-center justify-center rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
-                <X className="h-5 w-5" />
+                ×
               </button>
             </div>
 
             {/* Content */}
-            <div className="h-[calc(50vh-80px)] overflow-auto px-6 pb-6">
+            <div className="h-[calc(70vh-80px)] overflow-auto px-6 pb-6">
               {selected ? (
                 <div className="space-y-6">
                   {/* Selected item */}
-                  <div className="flex items-start gap-4 p-4 rounded-2xl border border-border/50 bg-card/50">
+                  <div className="flex items-start gap-4 p-4 bg-card border border-border rounded-2xl">
                     <Image
                       src={selected.img || "/placeholder.svg"}
                       alt={selected.name}
                       width={80}
                       height={80}
-                      className="h-20 w-20 rounded-xl object-cover border border-border/30 shadow-sm"
+                      className="h-20 w-20 rounded-xl object-cover border border-border shadow-sm"
                       style={{ objectFit: "cover" }}
                       unoptimized={selected.img?.startsWith("blob:")}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="text-xl font-bold text-foreground font-heading mb-1">{selected.name}</div>
-                      <div className="text-sm text-muted-foreground font-body mb-2">{selected.reason}</div>
-                      <div className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                      <div className="text-xl font-bold text-foreground mb-1">{selected.name}</div>
+                      <div className="text-sm text-muted-foreground mb-2">{selected.reason}</div>
+                      <div className="inline-flex items-center gap-1 bg-muted px-3 py-1 rounded-full text-sm font-medium text-foreground">
                         {selected.quantity}
                       </div>
                     </div>
@@ -597,20 +537,21 @@ export default function FoodAnalysisPage() {
 
                   {/* Deltas */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <DeltaBadge label="Calories" value={selected.delta.calories} unit="kcal" tone="primary" />
-                    <DeltaBadge label="Fat" value={selected.delta.fat} unit="g" tone="rose" />
-                    <DeltaBadge label="Protein" value={selected.delta.protein} unit="g" tone="emerald" />
-                    <DeltaBadge label="Carbs" value={selected.delta.carbs} unit="g" tone="sky" />
+                    <DeltaBadge label="Calories" value={selected.delta.calories} unit="kcal" />
+                    <DeltaBadge label="Fat" value={selected.delta.fat} unit="g" />
+                    <DeltaBadge label="Protein" value={selected.delta.protein} unit="g" />
+                    <DeltaBadge label="Carbs" value={selected.delta.carbs} unit="g" />
                   </div>
 
                   {/* Add button */}
-                  <Button
-                    className="w-full h-12 rounded-2xl bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:from-primary/90 hover:to-secondary/90 shadow-lg font-semibold font-body"
-                    onClick={onAdd}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add to Meal
-                  </Button>
+                  {recommendation == "yes" && (
+                    <Button
+                      className="w-full h-12 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm font-semibold"
+                      onClick={onAdd}
+                    >
+                      Add to Meal
+                    </Button>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -625,64 +566,18 @@ function MacroCard({
   label,
   value,
   unit,
-  tone = "neutral",
 }: {
   label: string
   value: number
   unit: string
-  tone?: "neutral" | "primary" | "rose" | "emerald" | "sky"
 }) {
-  const map = {
-    neutral: {
-      ring: "border-border/50",
-      bg: "bg-gradient-to-br from-card/80 to-background/50",
-      sub: "text-muted-foreground",
-      text: "text-foreground",
-      chip: "bg-muted text-muted-foreground",
-    },
-    primary: {
-      ring: "border-primary/20",
-      bg: "bg-gradient-to-br from-primary/5 via-secondary/5 to-background/50",
-      sub: "text-primary/80",
-      text: "text-primary",
-      chip: "bg-primary/10 text-primary",
-    },
-    rose: {
-      ring: "border-rose-200/50 dark:border-rose-900/50",
-      bg: "bg-gradient-to-br from-rose-50/50 via-rose-25/30 to-background/50 dark:from-rose-950/20 dark:via-rose-950/10 dark:to-background/50",
-      sub: "text-rose-700/80 dark:text-rose-300/90",
-      text: "text-rose-600 dark:text-rose-400",
-      chip: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
-    },
-    emerald: {
-      ring: "border-emerald-200/50 dark:border-emerald-900/50",
-      bg: "bg-gradient-to-br from-emerald-50/50 via-emerald-25/30 to-background/50 dark:from-emerald-950/20 dark:via-emerald-950/10 dark:to-background/50",
-      sub: "text-emerald-700/80 dark:text-emerald-300/90",
-      text: "text-emerald-600 dark:text-emerald-400",
-      chip: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-    },
-    sky: {
-      ring: "border-sky-200/50 dark:border-sky-900/50",
-      bg: "bg-gradient-to-br from-sky-50/50 via-sky-25/30 to-background/50 dark:from-sky-950/20 dark:via-sky-950/10 dark:to-background/50",
-      sub: "text-sky-700/80 dark:text-sky-300/90",
-      text: "text-sky-600 dark:text-sky-400",
-      chip: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
-    },
-  }[tone]
-
   return (
-    <div
-      className={[
-        "rounded-2xl border shadow-lg p-4 backdrop-blur-sm transition-all duration-200 hover:shadow-xl",
-        map.ring,
-        map.bg,
-      ].join(" ")}
-    >
+    <div className="bg-muted border border-border rounded-2xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-2">
-        <div className={["text-xs font-semibold font-body", map.sub].join(" ")}>{label}</div>
-        <div className={["rounded-full px-2.5 py-1 text-xs font-bold", map.chip].join(" ")}>{unit}</div>
+        <div className="text-xs font-semibold text-muted-foreground">{label}</div>
+        <div className="bg-background px-2.5 py-1 rounded-full text-xs font-bold text-muted-foreground">{unit}</div>
       </div>
-      <div className={["text-2xl font-bold tabular-nums font-heading", map.text].join(" ")}>{value}</div>
+      <div className="text-2xl font-bold tabular-nums text-foreground">{value}</div>
     </div>
   )
 }
@@ -691,58 +586,18 @@ function DeltaBadge({
   label,
   value,
   unit,
-  tone = "neutral",
 }: {
   label: string
   value: number
   unit: string
-  tone?: "neutral" | "primary" | "rose" | "emerald" | "sky"
 }) {
-  const map = {
-    neutral: {
-      ring: "border-border/50",
-      bg: "bg-gradient-to-br from-card/80 to-background/50",
-      sub: "text-muted-foreground",
-      text: "text-foreground",
-      chip: "bg-muted text-muted-foreground",
-    },
-    primary: {
-      ring: "border-primary/20",
-      bg: "bg-gradient-to-br from-primary/5 via-secondary/5 to-background/50",
-      sub: "text-primary/80",
-      text: "text-primary",
-      chip: "bg-primary/10 text-primary",
-    },
-    rose: {
-      ring: "border-rose-200/50 dark:border-rose-900/50",
-      bg: "bg-gradient-to-br from-rose-50/50 via-rose-25/30 to-background/50 dark:from-rose-950/20 dark:via-rose-950/10 dark:to-background/50",
-      sub: "text-rose-700/80 dark:text-rose-300/90",
-      text: "text-rose-600 dark:text-rose-400",
-      chip: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
-    },
-    emerald: {
-      ring: "border-emerald-200/50 dark:border-emerald-900/50",
-      bg: "bg-gradient-to-br from-emerald-50/50 via-emerald-25/30 to-background/50 dark:from-emerald-950/20 dark:via-emerald-950/10 dark:to-background/50",
-      sub: "text-emerald-700/80 dark:text-emerald-300/90",
-      text: "text-emerald-600 dark:text-emerald-400",
-      chip: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-    },
-    sky: {
-      ring: "border-sky-200/50 dark:border-sky-900/50",
-      bg: "bg-gradient-to-br from-sky-50/50 via-sky-25/30 to-background/50 dark:from-sky-950/20 dark:via-sky-950/10 dark:to-background/50",
-      sub: "text-sky-700/80 dark:text-sky-300/90",
-      text: "text-sky-600 dark:text-sky-400",
-      chip: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
-    },
-  }[tone]
-
   return (
-    <div className={["rounded-2xl border shadow-lg p-4 backdrop-blur-sm", map.ring, map.bg].join(" ")}>
+    <div className="bg-muted border border-border rounded-2xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-2">
-        <div className={["text-xs font-semibold font-body", map.sub].join(" ")}>{label}</div>
-        <div className={["rounded-full px-2.5 py-1 text-xs font-bold", map.chip].join(" ")}>{unit}</div>
+        <div className="text-xs font-semibold text-muted-foreground">{label}</div>
+        <div className="bg-background px-2.5 py-1 rounded-full text-xs font-bold text-muted-foreground">{unit}</div>
       </div>
-      <div className={["text-xl font-bold tabular-nums font-heading", map.text].join(" ")}>
+      <div className="text-xl font-bold tabular-nums text-foreground">
         {value >= 0 ? "+" : ""}
         {value}
       </div>

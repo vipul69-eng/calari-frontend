@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Check, Pencil, PlusCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { useUserStore } from "@/store/user-store"
 import { useUpsertUser } from "@/hooks/use-user"
+import { useMacroSuggestion } from "@/hooks/use-food"
 import { toast } from "sonner"
 
 interface Macros {
@@ -23,13 +24,19 @@ interface Macros {
 interface ProfileForm {
   name: string
   age: string
+  height: string // Added height field
+  weight: string // Added weight field
   profileText: string
+  selectedChoices: string[]
+  customText: string
   macros: Macros
 }
 
 interface Profile {
   name: string
   age: number
+  height?: number // Added height to profile interface
+  weight?: number // Added weight to profile interface
   profileText?: string
   macros: {
     calories: number
@@ -41,44 +48,68 @@ interface Profile {
 
 type Mode = "view" | "edit" | "create"
 
+const PREDEFINED_CHOICES = [
+  { id: "vegetarian", label: "Vegetarian", category: "diet" },
+  { id: "non-vegetarian", label: "Non-Vegetarian", category: "diet" },
+  { id: "eggetarian", label: "Eggetarian", category: "diet" },
+  { id: "vegan", label: "Vegan", category: "diet" },
+  { id: "keto", label: "Keto", category: "diet" },
+  { id: "paleo", label: "Paleo", category: "diet" },
+  { id: "sedentary", label: "Sedentary", category: "activity" },
+  { id: "lightly-active", label: "Lightly Active", category: "activity" },
+  { id: "moderately-active", label: "Moderately Active", category: "activity" },
+  { id: "very-active", label: "Very Active", category: "activity" },
+  { id: "weight-loss", label: "Weight Loss", category: "goal" },
+  { id: "muscle-gain", label: "Muscle Gain", category: "goal" },
+  { id: "maintenance", label: "Maintenance", category: "goal" },
+]
+
 export default function ProfilePage() {
   const user = useUserStore((state) => state.user)
   const setUser = useUserStore((state) => state.setUser)
   const { upsertUser, loading: upserting } = useUpsertUser()
+  const {
+    getSuggestion,
+    loading: suggestingMacros,
+    error: suggestionError,
+    data: suggestionData,
+    reset: resetSuggestion,
+  } = useMacroSuggestion()
   const [mode, setMode] = useState<Mode>("view")
+  const [saving, setSaving] = useState<boolean>(false)
   const [form, setForm] = useState<ProfileForm>({
     name: "",
     age: "",
+    height: "", // Added height to form state
+    weight: "", // Added weight to form state
     profileText: "",
+    selectedChoices: [],
+    customText: "",
     macros: {
       calories: "",
       protein: "",
       fat: "",
-      carbs: ""
-    }
+      carbs: "",
+    },
   })
 
   const plan = user?.plan || "basic"
   const profile = user?.profile as Profile | undefined
   const loading = upserting
-  // Check if profile exists and has required fields
+
   const isEmptyProfile = useMemo(() => {
     if (!profile) return true
-    
-    // Check if profile is empty object {}
+
     if (Object.keys(profile).length === 0) return true
-    
-    // Check if profile lacks essential fields
+
     if (!profile.name || !profile.age || !profile.macros) return true
-    
-    // Check if macros are empty
+
     const macros = profile.macros
     if (!macros.calories || !macros.protein || !macros.fat || !macros.carbs) return true
-    
+
     return false
   }, [profile])
 
-  // Set initial mode based on profile state
   useEffect(() => {
     if (isEmptyProfile) {
       setMode("create")
@@ -88,43 +119,90 @@ export default function ProfilePage() {
   }, [isEmptyProfile])
 
   const isBasic = plan === "basic"
+  const isPro = plan === "pro"
   const macrosAreFilled = useMemo(() => {
     const m = form.macros
     const vals = [m.calories, m.protein, m.fat, m.carbs]
     return vals.every((v) => v !== "" && !Number.isNaN(Number(v)))
   }, [form.macros])
 
+  const parseProfileText = useCallback((profileText: string) => {
+    const choices: string[] = []
+    let remainingText = profileText
+
+    PREDEFINED_CHOICES.forEach((choice) => {
+      const regex = new RegExp(`\\b${choice.label.toLowerCase()}\\b`, "i")
+      if (regex.test(profileText.toLowerCase())) {
+        choices.push(choice.id)
+        remainingText = remainingText.replace(regex, "").trim()
+      }
+    })
+
+    // Clean up extra spaces and commas
+    remainingText = remainingText
+      .replace(/,\s*,/g, ",")
+      .replace(/^,\s*|,\s*$/g, "")
+      .trim()
+
+    return { choices, customText: remainingText }
+  }, [])
+
+  const combineProfileText = useCallback((choices: string[], customText: string) => {
+    const choiceLabels = choices
+      .map((choiceId) => PREDEFINED_CHOICES.find((c) => c.id === choiceId)?.label)
+      .filter(Boolean)
+
+    const parts = [...choiceLabels, customText].filter((part) => part && part.trim())
+    return parts.join(", ")
+  }, [])
+
   const startEdit = useCallback(() => {
     if (profile && !isEmptyProfile) {
+      const { choices, customText } = parseProfileText(profile.profileText || "")
       setForm({
         name: profile.name || "",
         age: profile.age?.toString() || "",
+        height: profile.height?.toString() || "", // Added height to edit form
+        weight: profile.weight?.toString() || "", // Added weight to edit form
         profileText: profile.profileText || "",
+        selectedChoices: choices,
+        customText: customText,
         macros: {
           calories: profile.macros?.calories?.toString() || "",
           protein: profile.macros?.protein?.toString() || "",
           fat: profile.macros?.fat?.toString() || "",
-          carbs: profile.macros?.carbs?.toString() || ""
-        }
+          carbs: profile.macros?.carbs?.toString() || "",
+        },
       })
     }
     setMode("edit")
-  }, [profile, isEmptyProfile])
+  }, [profile, isEmptyProfile, parseProfileText])
 
   const startCreate = useCallback(() => {
     setForm({
       name: "",
       age: "",
+      height: "", // Added height to create form
+      weight: "", // Added weight to create form
       profileText: "",
+      selectedChoices: [],
+      customText: "",
       macros: {
         calories: "",
         protein: "",
         fat: "",
-        carbs: ""
-      }
+        carbs: "",
+      },
     })
     setMode("create")
   }, [])
+
+  useEffect(() => {
+    const combinedText = combineProfileText(form.selectedChoices, form.customText)
+    if (combinedText !== form.profileText) {
+      setForm((f) => ({ ...f, profileText: combinedText }))
+    }
+  }, [form.selectedChoices, form.customText, combineProfileText])
 
   const cancelEdit = useCallback(() => {
     if (isEmptyProfile) {
@@ -137,34 +215,38 @@ export default function ProfilePage() {
   const validateForm = useCallback(() => {
     if (!form.name.trim()) return false
     if (!form.age || Number.isNaN(Number(form.age))) return false
+    if (!form.height || Number.isNaN(Number(form.height))) return false
+    if (!form.weight || Number.isNaN(Number(form.weight))) return false
     if (!macrosAreFilled) return false
     return true
-  }, [form.name, form.age, macrosAreFilled])
+  }, [form.name, form.age, form.height, form.weight, macrosAreFilled])
+
   const createProfile = useCallback(async () => {
     if (!validateForm() || !user) return false
 
     const newProfile: Profile = {
       name: form.name.trim(),
       age: Number(form.age),
+      height: form.height ? Number(form.height) : undefined, // Added height to profile creation
+      weight: form.weight ? Number(form.weight) : undefined, // Added weight to profile creation
       profileText: form.profileText.trim(),
       macros: {
         calories: Number(form.macros.calories),
         protein: Number(form.macros.protein),
         fat: Number(form.macros.fat),
-        carbs: Number(form.macros.carbs)
-      }
+        carbs: Number(form.macros.carbs),
+      },
     }
 
     await upsertUser({
       email: user.email,
       plan: user.plan,
-      profile: newProfile
+      profile: newProfile,
     })
 
-    // Update the store immediately with new profile
     const updatedUser = {
       ...user,
-      profile: newProfile
+      profile: newProfile,
     }
     setUser(updatedUser)
 
@@ -178,25 +260,26 @@ export default function ProfilePage() {
     const updatedProfile: Profile = {
       name: form.name.trim(),
       age: Number(form.age),
+      height: form.height ? Number(form.height) : undefined, // Added height to profile update
+      weight: form.weight ? Number(form.weight) : undefined, // Added weight to profile update
       profileText: form.profileText.trim(),
       macros: {
         calories: Number(form.macros.calories),
         protein: Number(form.macros.protein),
         fat: Number(form.macros.fat),
-        carbs: Number(form.macros.carbs)
-      }
+        carbs: Number(form.macros.carbs),
+      },
     }
 
     await upsertUser({
       email: user.email,
       plan: user.plan,
-      profile: updatedProfile
+      profile: updatedProfile,
     })
 
-    // Update the store immediately with updated profile
     const updatedUser = {
       ...user,
-      profile: updatedProfile
+      profile: updatedProfile,
     }
     setUser(updatedUser)
 
@@ -204,54 +287,90 @@ export default function ProfilePage() {
     return true
   }, [form, user, validateForm, upsertUser, setUser])
 
+  const handleSuggestMacros = useCallback(async () => {
+    if (!form.profileText.trim() || !form.age) {
+      toast("Please fill in your age and profile details first")
+      return
+    }
 
+    const ageNum = Number(form.age)
+    if (isNaN(ageNum) || ageNum < 5 || ageNum > 120) {
+      toast("Please enter a valid age")
+      return
+    }
 
+    try {
+      let enhancedContext = form.profileText.trim()
+      if (form.height) {
+        enhancedContext += `, height: ${form.height}cm`
+      }
+      if (form.weight) {
+        enhancedContext += `, weight: ${form.weight}kg`
+      }
 
-  if (loading) {
-    return (
-      <main
-        className="min-h-dvh bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100"
-        style={{
-          paddingTop: "env(safe-area-inset-top)",
-          paddingBottom: "calc(env(safe-area-inset-bottom) + 72px)",
-          paddingLeft: "env(safe-area-inset-left)",
-          paddingRight: "env(safe-area-inset-right)",
-        }}
-      >
-        <div className="mx-auto max-w-screen-sm px-4 py-8">
-          <div className="space-y-6">
-            <div className="h-8 w-48 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" />
-            <div className="h-4 w-32 animate-pulse rounded bg-neutral-200 dark:bg-neutral-800" />
-            <Card className="animate-pulse border-neutral-200 dark:border-neutral-800 dark:bg-neutral-900/60">
-              <CardHeader className="pb-3">
-                <div className="h-6 w-24 rounded bg-neutral-200 dark:bg-neutral-800" />
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="h-24 rounded-xl bg-neutral-200 dark:bg-neutral-800" />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="animate-pulse border-neutral-200 dark:border-neutral-800 dark:bg-neutral-900/60">
-              <CardHeader className="pb-3">
-                <div className="h-6 w-32 rounded bg-neutral-200 dark:bg-neutral-800" />
-              </CardHeader>
-              <CardContent>
-                <div className="h-20 w-full rounded bg-neutral-200 dark:bg-neutral-800" />
-              </CardContent>
-            </Card>
-            <div className="h-10 w-full animate-pulse rounded-xl bg-neutral-200 dark:bg-neutral-800" />
-          </div>
-        </div>
-      </main>
-    )
-  }
+      const suggestion = await getSuggestion(enhancedContext, ageNum)
+      if (suggestion) {
+        setForm((f) => ({
+          ...f,
+          macros: {
+            calories: suggestion.calories.toString(),
+            protein: suggestion.protein.toString(),
+            fat: suggestion.fat.toString(),
+            carbs: suggestion.carbs.toString(),
+          },
+        }))
+        toast("Macro suggestions applied!")
+      }
+    } catch (error) {
+      console.error("Failed to get macro suggestions:", error)
+    }
+  }, [form.profileText, form.age, form.height, form.weight, getSuggestion])
+
+  const showSuggestButton = useMemo(() => {
+    return isPro && (form.selectedChoices.length > 0 || form.customText.length > 20)
+  }, [isPro, form.selectedChoices.length, form.customText.length])
+
+  const toggleChoice = useCallback(
+    (choiceId: string) => {
+      const choice = PREDEFINED_CHOICES.find((c) => c.id === choiceId)
+      if (!choice) return
+
+      setForm((f) => {
+        let newChoices = [...f.selectedChoices]
+
+        if (choice.category === "diet" || choice.category === "activity") {
+          // Single selection for diet and activity - remove other choices in same category
+          newChoices = newChoices.filter((id) => {
+            const existingChoice = PREDEFINED_CHOICES.find((c) => c.id === id)
+            return existingChoice?.category !== choice.category
+          })
+
+          // Toggle the clicked choice
+          if (!f.selectedChoices.includes(choiceId)) {
+            newChoices.push(choiceId)
+          }
+        } else {
+          // Multiple selection for goals
+          if (f.selectedChoices.includes(choiceId)) {
+            newChoices = newChoices.filter((id) => id !== choiceId)
+          } else {
+            newChoices.push(choiceId)
+          }
+        }
+
+        return { ...f, selectedChoices: newChoices }
+      })
+
+      if (suggestionData) {
+        resetSuggestion()
+      }
+    },
+    [suggestionData, resetSuggestion],
+  )
 
   return (
     <main
-      className="min-h-dvh bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100"
+      className="min-h-dvh bg-background"
       style={{
         paddingTop: "env(safe-area-inset-top)",
         paddingBottom: "calc(env(safe-area-inset-bottom) + 72px)",
@@ -259,265 +378,400 @@ export default function ProfilePage() {
         paddingRight: "env(safe-area-inset-right)",
       }}
     >
-      <div className="mx-auto max-w-screen-sm px-4 py-8 space-y-6">
-        {/* Create mode header */}
-        {mode === "create" && (
-          <header className="flex flex-col items-start justify-between pb-4 border-b border-neutral-200 dark:border-neutral-800">
-            <h1 className="text-3xl font-bold tracking-tight">Create your profile</h1>
-            <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-              Plan: <span className="font-semibold text-neutral-700 dark:text-neutral-300">{plan.toUpperCase()}</span>
-            </p>
-          </header>
-        )}
-
-        {/* View mode - only show if profile exists and is not empty */}
-        {mode === "view" && !isEmptyProfile && profile ? (
-          <>
-            <section aria-label="User header" className="pb-4 border-b border-neutral-200 dark:border-neutral-800">
-              <div className="mb-2">
-                <h1 className="text-4xl font-extrabold tracking-tight text-neutral-900 dark:text-neutral-100">
-                  {profile.name}
-                </h1>
-                <p className="mt-2 text-lg text-neutral-600 dark:text-neutral-300">
-                  <span className="font-semibold text-neutral-800 dark:text-neutral-200">Age:</span> {profile.age}
-                </p>
+      <div className="mx-auto max-w-md px-4 py-8 sm:max-w-lg sm:px-6">
+        <div className="space-y-6">
+          {mode === "create" && (
+            <header className="text-center space-y-4">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Create Profile</h1>
+              <div className="flex items-center justify-center">
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold",
+                    isPro ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {plan.toUpperCase()} PLAN
+                </span>
               </div>
-            </section>
+            </header>
+          )}
 
-            <section aria-label="Daily suggested macro intake">
-              <Card className="border-neutral-200 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/60">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-xl font-semibold text-neutral-800 dark:text-neutral-200">
-                    Daily Macros
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    <MacroCard label="Cal" value={profile.macros.calories} unit="kcal" />
-                    <MacroCard label="Protein" value={profile.macros.protein} unit="g" />
-                    <MacroCard label="Fat" value={profile.macros.fat} unit="g" />
-                    <MacroCard label="Carbs" value={profile.macros.carbs} unit="g" />
+          {mode === "view" && !isEmptyProfile && profile ? (
+            <>
+              <section aria-label="User header" className="text-center space-y-4">
+                <div>
+                  <h1 className="text-4xl font-bold tracking-tight text-foreground">{profile.name}</h1>
+                  <div className="mt-4 flex items-center justify-center gap-6 text-muted-foreground">
+                    
                   </div>
-                </CardContent>
-              </Card>
-            </section>
+                  {isPro && (
+                    <div className="mt-3 flex items-center justify-center">
+                      <span className="text-sm font-semibold text-primary">PRO MEMBER</span>
+                    </div>
+                  )}
+                </div>
+              </section>
 
-            {profile.profileText && plan !== "basic" ? (
-              <section aria-label="Profile details">
-                <Card className="border-neutral-200 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/60">
-                  <CardHeader>
-                    <CardTitle className="text-xl font-semibold text-neutral-800 dark:text-neutral-200">
-                      Profile Details
+              <section aria-label="Daily suggested macro intake">
+                <Card className="border-border bg-card shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-center text-xl font-semibold text-card-foreground">
+                      Daily Macros
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-base text-neutral-700 dark:text-neutral-300">{profile.profileText}</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <MacroCard label="Calories" value={profile.macros.calories} unit="kcal" tone="muted" />
+                      <MacroCard label="Protein" value={profile.macros.protein} unit="g" tone="muted" />
+                      <MacroCard label="Fat" value={profile.macros.fat} unit="g" tone="muted" />
+                      <MacroCard label="Carbs" value={profile.macros.carbs} unit="g" tone="muted" />
+                    </div>
                   </CardContent>
                 </Card>
               </section>
-            ) : null}
 
-            <div className="pt-4">
-              <Button
-                className="w-full rounded-xl bg-transparent text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                variant="outline"
-                onClick={startEdit}
-              >
-                <Pencil className="mr-2 h-4 w-4" /> Edit profile
-              </Button>
-            </div>
-          </>
-        ):null}
+              {profile.profileText && isPro && (
+                <section aria-label="Profile details">
+                  <Card className="border-border bg-card shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="text-lg font-semibold text-card-foreground">Profile Details</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm leading-relaxed text-card-foreground">{profile.profileText}</p>
+                    </CardContent>
+                  </Card>
+                </section>
+              )}
 
-        {/* Create or Edit mode */}
-        {(mode === "create" || mode === "edit") && (
-          <Card className="border-neutral-200 shadow-lg dark:border-neutral-800 dark:bg-neutral-900/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl font-semibold text-neutral-800 dark:text-neutral-200">
-                {mode === "create" ? "Create Profile" : "Edit Profile"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    Name
-                  </Label>
-                  <Input
-                    id="name"
-                    placeholder="Your name"
-                    value={form.name}
-                    onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))}
-                    className="border-neutral-300 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="age" className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    Age
-                  </Label>
-                  <Input
-                    id="age"
-                    inputMode="numeric"
-                    type="number"
-                    placeholder="Age"
-                    value={form.age}
-                    onChange={(e) => setForm((f: any) => ({ ...f, age: e.target.value }))}
-                    min={5}
-                    max={120}
-                    className="border-neutral-300 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
-                  />
-                </div>
+              <div className="pt-4">
+                <Button
+                  className="h-12 w-full rounded-lg bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                  variant="outline"
+                  onClick={startEdit}
+                >
+                  Edit Profile
+                </Button>
               </div>
+            </>
+          ) : null}
 
-              {!isBasic ? (
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="profile-text"
-                    className="text-sm font-medium text-neutral-700 dark:text-neutral-300"
-                  >
-                    Tell us about you
-                  </Label>
-                  <Textarea
-                    id="profile-text"
-                    placeholder="E.g., vegetarian, running 3x/week, focusing on strength..."
-                    value={form.profileText}
-                    onChange={(e) => setForm((f: any) => ({ ...f, profileText: e.target.value }))}
-                    className="min-h-[120px] resize-y border-neutral-300 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
-                  />
-                  {/* <div className="flex items-center justify-end">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="rounded-lg bg-transparent text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                      onClick={suggestMacros}
-                    >
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Suggest macros
-                    </Button>
-                  </div> */}
+          {(mode === "create" || mode === "edit") && (
+            <Card className="border-border bg-card shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-center text-xl font-semibold text-card-foreground">
+                  {mode === "create" ? "Create Profile" : "Edit Profile"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-sm font-medium text-card-foreground">
+                      Name
+                    </Label>
+                    <Input
+                      id="name"
+                      placeholder="Your name"
+                      value={form.name}
+                      onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))}
+                      className="h-12 rounded-lg border-border bg-input"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="age" className="text-sm font-medium text-card-foreground">
+                        Age *
+                      </Label>
+                      <Input
+                        id="age"
+                        inputMode="numeric"
+                        type="number"
+                        placeholder="Age"
+                        value={form.age}
+                        onChange={(e) => setForm((f: any) => ({ ...f, age: e.target.value }))}
+                        min={5}
+                        max={120}
+                        className="h-12 rounded-lg border-border bg-input"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="height" className="text-sm font-medium text-card-foreground">
+                        Height (cm) *
+                      </Label>
+                      <Input
+                        id="height"
+                        inputMode="numeric"
+                        type="number"
+                        placeholder="Height"
+                        value={form.height}
+                        onChange={(e) => setForm((f: any) => ({ ...f, height: e.target.value }))}
+                        min={50}
+                        max={250}
+                        className="h-12 rounded-lg border-border bg-input"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="weight" className="text-sm font-medium text-card-foreground">
+                      Weight (kg) *
+                    </Label>
+                    <Input
+                      id="weight"
+                      inputMode="numeric"
+                      type="number"
+                      placeholder="Weight"
+                      value={form.weight}
+                      onChange={(e) => setForm((f: any) => ({ ...f, weight: e.target.value }))}
+                      min={20}
+                      max={300}
+                      className="h-12 rounded-lg border-border bg-input"
+                      required
+                    />
+                  </div>
                 </div>
-              ) : null}
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Daily Macros</Label>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <MacroInput
-                    label="Calories"
-                    unit="kcal"
-                    value={form.macros.calories}
-                    onChange={(v) => setForm((f) => ({ ...f, macros: { ...f.macros, calories: v } }))}
-                  />
-                  <MacroInput
-                    label="Protein"
-                    unit="g"
-                    value={form.macros.protein}
-                    onChange={(v) => setForm((f) => ({ ...f, macros: { ...f.macros, protein: v } }))}
-                  />
-                  <MacroInput
-                    label="Fat"
-                    unit="g"
-                    value={form.macros.fat}
-                    onChange={(v) => setForm((f) => ({ ...f, macros: { ...f.macros, fat: v } }))}
-                  />
-                  <MacroInput
-                    label="Carbs"
-                    unit="g"
-                    value={form.macros.carbs}
-                    onChange={(v) => setForm((f) => ({ ...f, macros: { ...f.macros, carbs: v } }))}
-                  />
-                </div>
-                {!isBasic && !macrosAreFilled ? (
-                  <p className="text-xs text-amber-600 dark:text-amber-300 mt-2">
-                    Tip: Use &quot;Suggest macros&quot; to prefill based on your profile.
-                  </p>
-                ) : null}
-              </div>
+                {isPro ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-medium text-card-foreground">Tell us about you</Label>
+                      <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                        PRO
+                      </span>
+                    </div>
 
-              <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
-                {mode === "edit" ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      className="rounded-xl bg-transparent text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                      onClick={cancelEdit}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      className="rounded-xl bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-200"
-                      onClick={async () => {
-                        const ok = await updateProfile()
-                        if (ok) {
-                          toast("Profile updated")
-                        } else {
-                          toast("Check inputs")
-                        }
-                      }}
-                    >
-                      <Check className="mr-2 h-4 w-4" />
-                      Save changes
-                    </Button>
-                  </>
+                    <div className="space-y-4">
+                      {["diet", "activity", "goal"].map((category) => {
+                        const categoryChoices = PREDEFINED_CHOICES.filter((choice) => choice.category === category)
+                        const categoryTitle =
+                          category === "diet"
+                            ? "Dietary Preferences"
+                            : category === "activity"
+                              ? "Activity Level"
+                              : "Fitness Goals"
+
+                        return (
+                          <div key={category} className="space-y-3">
+                            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              {categoryTitle}{" "}
+                              {category !== "goal" && <span className="text-muted-foreground/60">(Select one)</span>}
+                            </Label>
+                            <div className="flex flex-wrap gap-2">
+                              {categoryChoices.map((choice) => (
+                                <Button
+                                  key={choice.id}
+                                  type="button"
+                                  size="sm"
+                                  variant={form.selectedChoices.includes(choice.id) ? "default" : "outline"}
+                                  className={cn(
+                                    "h-9 rounded-full text-sm transition-all",
+                                    form.selectedChoices.includes(choice.id)
+                                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                      : "bg-background text-foreground border-border hover:bg-muted",
+                                  )}
+                                  onClick={() => toggleChoice(choice.id)}
+                                >
+                                  {choice.label}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="custom-text"
+                        className="text-xs font-medium text-muted-foreground uppercase tracking-wide"
+                      >
+                        Additional Details (Optional)
+                      </Label>
+                      <Textarea
+                        id="custom-text"
+                        placeholder="E.g., specific allergies, workout routine, health conditions..."
+                        value={form.customText}
+                        onChange={(e) => {
+                          setForm((f: any) => ({ ...f, customText: e.target.value }))
+                          if (suggestionData) {
+                            resetSuggestion()
+                          }
+                        }}
+                        className="min-h-[80px] resize-y rounded-lg border-border bg-input"
+                      />
+                    </div>
+
+                    {showSuggestButton && (
+                      <div className="space-y-2">
+                        
+                        <div className="relative">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="absolute my-2 right-2 top-1/2 -translate-y-1/2 h-8 rounded-md bg-primary text-primary-foreground px-3 hover:bg-primary/90 transition-colors text-xs"
+                            onClick={handleSuggestMacros}
+                            disabled={suggestingMacros}
+                          >
+                            {suggestingMacros ? "..." : "Suggest"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {form.selectedChoices.length === 0 && form.customText.length <= 20 && (
+                      <p className="text-xs text-center text-muted-foreground">
+                        Select preferences or add {20 - form.customText.length} more characters to unlock AI macro
+                        suggestions
+                      </p>
+                    )}
+                  </div>
                 ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      className="rounded-xl bg-transparent text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                      onClick={startCreate}
-                    >
-                      Reset
-                    </Button>
-                    <Button
-                      className="rounded-xl bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
-                      onClick={async () => {
-                        const ok = await createProfile()
-                        if (ok) {
-                          toast("Profile created")
-                        } else {
-                          toast("Check your inputs")
-                        }
-                      }}
-                    >
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Create profile
-                    </Button>
-                  </>
+                  <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Upgrade to <span className="font-semibold text-primary">PRO</span> to add profile details and get
+                      AI macro suggestions
+                    </p>
+                  </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+
+                
+
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium text-card-foreground">Daily Macros *</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <MacroInput
+                      label="Calories"
+                      unit="kcal"
+                      value={form.macros.calories}
+                      onChange={(v) => setForm((f) => ({ ...f, macros: { ...f.macros, calories: v } }))}
+                      tone="muted"
+                    />
+                    <MacroInput
+                      label="Protein"
+                      unit="g"
+                      value={form.macros.protein}
+                      onChange={(v) => setForm((f) => ({ ...f, macros: { ...f.macros, protein: v } }))}
+                      tone="muted"
+                    />
+                    <MacroInput
+                      label="Fat"
+                      unit="g"
+                      value={form.macros.fat}
+                      onChange={(v) => setForm((f) => ({ ...f, macros: { ...f.macros, fat: v } }))}
+                      tone="muted"
+                    />
+                    <MacroInput
+                      label="Carbs"
+                      unit="g"
+                      value={form.macros.carbs}
+                      onChange={(v) => setForm((f) => ({ ...f, macros: { ...f.macros, carbs: v } }))}
+                      tone="muted"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:justify-end">
+                  {mode === "edit" ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="h-12 rounded-lg bg-background text-foreground border-border hover:bg-muted transition-colors sm:w-auto"
+                        onClick={cancelEdit}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        className="h-12 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors sm:w-auto"
+                        disabled={saving}
+                        onClick={async () => {
+                          setSaving(true)
+                          const ok = await updateProfile()
+                          if (ok) {
+                            toast("Profile updated")
+                          } else {
+                            toast("Check inputs")
+                          }
+                          setSaving(false)
+                        }}
+                      >
+                        {!saving?"Save Changes":"Saving..."}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="h-12 rounded-lg bg-background text-foreground border-border hover:bg-muted transition-colors sm:w-auto"
+                        onClick={startCreate}
+                      >
+                        Reset
+                      </Button>
+                      <Button
+                        className="h-12 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors sm:w-auto"
+                        onClick={async () => {
+                          const ok = await createProfile()
+                          if (ok) {
+                            toast("Profile created")
+                          } else {
+                            toast("Check your inputs")
+                          }
+                        }}
+                      >
+                        Create Profile
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </main>
   )
 }
 
-/* ————— Subcomponents ————— */
 function MacroInput({
   label,
   unit,
   value,
   onChange,
+  tone = "muted",
 }: {
   label: string
   unit: string
   value: string
   onChange: (next: string) => void
+  tone?: "primary" | "secondary" | "accent" | "muted"
 }) {
+  const toneStyles = {
+    primary: "border-primary/20 bg-primary/5",
+    secondary: "border-secondary/20 bg-secondary/5",
+    accent: "border-accent/20 bg-accent/5",
+    muted: "border-border bg-muted/30",
+  }
+
+  const chipStyles = {
+    primary: "bg-primary/10 text-primary",
+    secondary: "bg-secondary/10 text-secondary",
+    accent: "bg-accent/10 text-accent",
+    muted: "bg-muted text-muted-foreground",
+  }
+
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/70">
+    <div className={cn("rounded-lg border p-3", toneStyles[tone])}>
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-sm font-medium text-neutral-600 dark:text-neutral-300">{label}</div>
-        <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-semibold text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-          {unit}
-        </span>
+        <div className="text-sm font-medium text-card-foreground">{label}</div>
+        <span className={cn("rounded-full px-2 py-1 text-xs font-semibold", chipStyles[tone])}>{unit}</span>
       </div>
       <Input
         inputMode="numeric"
         type="number"
         min={0}
-        className="text-lg font-semibold border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent px-2"
+        className="border-none bg-transparent p-0 text-xl font-semibold focus-visible:ring-0 focus-visible:ring-offset-0"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="0"
@@ -530,58 +784,45 @@ function MacroCard({
   label,
   value,
   unit,
-  tone = "neutral",
+  tone = "muted",
 }: {
   label: string
   value: number
   unit: string
-  tone?: "neutral" | "amber" | "rose" | "emerald" | "sky"
+  tone?: "primary" | "secondary" | "accent" | "muted"
 }) {
-  const map = {
-    neutral: {
-      ring: "border-neutral-200 dark:border-neutral-800",
-      bg: "bg-white/90 dark:bg-neutral-900/60",
-      sub: "text-neutral-500 dark:text-neutral-400",
-      text: "text-neutral-900 dark:text-neutral-100",
-      chip: "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200",
+  const toneStyles = {
+    primary: {
+      container: "border-primary/20 bg-primary/5",
+      text: "text-primary",
+      chip: "bg-primary/10 text-primary",
     },
-    amber: {
-      ring: "border-amber-200/80 dark:border-amber-900/50",
-      bg: "bg-amber-50/70 dark:bg-amber-950/30",
-      sub: "text-amber-700/80 dark:text-amber-300/90",
-      text: "text-amber-900 dark:text-amber-100",
-      chip: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
+    secondary: {
+      container: "border-secondary/20 bg-secondary/5",
+      text: "text-secondary",
+      chip: "bg-secondary/10 text-secondary",
     },
-    rose: {
-      ring: "border-rose-200/80 dark:border-rose-900/50",
-      bg: "bg-rose-50/70 dark:bg-rose-950/30",
-      sub: "text-rose-700/80 dark:text-rose-300/90",
-      text: "text-rose-900 dark:text-rose-100",
-      chip: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200",
+    accent: {
+      container: "border-accent/20 bg-accent/5",
+      text: "text-accent",
+      chip: "bg-accent/10 text-accent",
     },
-    emerald: {
-      ring: "border-emerald-200/80 dark:border-emerald-900/50",
-      bg: "bg-emerald-50/70 dark:bg-emerald-950/30",
-      sub: "text-emerald-700/80 dark:text-emerald-300/90",
-      text: "text-emerald-900 dark:text-emerald-100",
-      chip: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
+    muted: {
+      container: "border-border bg-muted/30",
+      text: "text-card-foreground",
+      chip: "bg-muted text-muted-foreground",
     },
-    sky: {
-      ring: "border-sky-200/80 dark:border-sky-900/50",
-      bg: "bg-sky-50/70 dark:bg-sky-950/30",
-      sub: "text-sky-700/80 dark:text-sky-300/90",
-      text: "text-sky-900 dark:text-sky-100",
-      chip: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200",
-    },
-  }[tone]
-  
+  }
+
+  const styles = toneStyles[tone]
+
   return (
-    <div className={cn("rounded-xl border p-4 shadow-md", map.ring, map.bg)}>
-      <div className="flex items-center justify-between">
-        <div className={cn("text-sm font-medium", map.sub)}>{label}</div>
-        <div className={cn("rounded-full px-2.5 py-1 text-xs font-semibold", map.chip)}>{unit}</div>
+    <div className={cn("rounded-lg border p-4", styles.container)}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-sm font-medium text-muted-foreground">{label}</div>
+        <div className={cn("rounded-full px-2 py-1 text-xs font-semibold", styles.chip)}>{unit}</div>
       </div>
-      <div className={cn("mt-2 text-3xl font-bold tabular-nums", map.text)}>{value}</div>
+      <div className={cn("text-3xl font-bold tabular-nums", styles.text)}>{value}</div>
     </div>
   )
 }

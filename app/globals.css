@@ -112,6 +112,13 @@
   --sidebar-ring: oklch(0.553 0.013 58.071);
 }
 
+html, body {
+  background: transparent;
+  padding-top: env(safe-area-inset-top); /* space for notch on iOS */
+  -webkit-tap-highlight-color: transparent;
+}
+
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -120,3 +127,4 @@
     @apply bg-background text-foreground;
   }
 }
+

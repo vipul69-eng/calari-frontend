@@ -1,9 +1,9 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // hooks/useFoodAnalysis.ts
-import { useState, useCallback } from 'react';
-import { api } from '@/lib/api';
-import { useAuth } from '@clerk/nextjs';
+import { useState, useCallback } from "react";
+import { api } from "@/lib/api";
+import { useAuth } from "@clerk/nextjs";
 
 export interface FoodAnalysisContext {
   userInfo?: string;
@@ -70,7 +70,7 @@ interface AnalysisData {
 interface FoodAnalysisResult {
   success: boolean;
   data?: AnalysisData;
-  analysisType?: 'image' | 'text';
+  analysisType?: "image" | "text";
   contextProvided?: boolean;
   hasRecommendation?: boolean;
   hasComplementaryFoods?: boolean;
@@ -81,8 +81,15 @@ interface FoodAnalysisResult {
 }
 
 interface UseFoodAnalysisReturn {
-  analyzeImage: (imageUrl: string, context?: FoodAnalysisContext) => Promise<FoodAnalysisResult>;
-  analyzeText: (foodName: string, quantity: string, context?: FoodAnalysisContext) => Promise<FoodAnalysisResult>;
+  analyzeImage: (
+    imageUrl: string,
+    context?: FoodAnalysisContext,
+  ) => Promise<FoodAnalysisResult>;
+  analyzeText: (
+    foodName: string,
+    quantity: string,
+    context?: FoodAnalysisContext,
+  ) => Promise<FoodAnalysisResult>;
   analyzing: boolean;
   error: string | null;
   result: FoodAnalysisResult | null;
@@ -93,32 +100,37 @@ export const useFoodAnalysis = (): UseFoodAnalysisReturn => {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<FoodAnalysisResult | null>(null);
-  
-  const {getToken} = useAuth()
+
+  const { getToken } = useAuth();
   const analyzeImage = useCallback(
-    async (imageUrl: string, context?: FoodAnalysisContext): Promise<FoodAnalysisResult> => {
+    async (
+      imageUrl: string,
+      context?: FoodAnalysisContext,
+    ): Promise<FoodAnalysisResult> => {
       setAnalyzing(true);
       setError(null);
       setResult(null);
-    
 
-      const token = await getToken()
+      const token = await getToken();
       try {
-
-        const response = await api.post<FoodAnalysisResult>('/food/image', {
-          imageUrl,
-          context,
-        }, {
-            headers:{
-                Authorization:`Bearer ${token}`
-            }
-        });
+        const response = await api.post<FoodAnalysisResult>(
+          "/food/image",
+          {
+            imageUrl,
+            context,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
 
         setResult(response.data);
         return response.data;
       } catch (err: any) {
-        let message = 'Failed to analyze image';
-        
+        let message = "Failed to analyze image";
+
         if (err.response?.data?.error) {
           message = err.response.data.error;
         } else if (err.response?.data?.details) {
@@ -133,33 +145,40 @@ export const useFoodAnalysis = (): UseFoodAnalysisReturn => {
         setAnalyzing(false);
       }
     },
-    []
+    [],
   );
 
   const analyzeText = useCallback(
-    async (foodName: string, quantity: string, context?: FoodAnalysisContext): Promise<FoodAnalysisResult> => {
+    async (
+      foodName: string,
+      quantity: string,
+      context?: FoodAnalysisContext,
+    ): Promise<FoodAnalysisResult> => {
       setAnalyzing(true);
       setError(null);
       setResult(null);
-
-      const token = await getToken()
+      console.log(context);
+      const token = await getToken();
       try {
-
-        const response = await api.post<FoodAnalysisResult>('/food/text', {
-          foodName: foodName.trim(),
-          quantity: quantity.trim(),
-          context,
-        }, {
-            headers:{
-                Authorization:`Bearer ${token}`
-            }
-        });
+        const response = await api.post<FoodAnalysisResult>(
+          "/food/text",
+          {
+            foodName: foodName.trim(),
+            quantity: quantity.trim(),
+            context,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
 
         setResult(response.data);
         return response.data;
       } catch (err: any) {
-        let message = 'Failed to analyze text input';
-        
+        let message = "Failed to analyze text input";
+
         if (err.response?.data?.error) {
           message = err.response.data.error;
         } else if (err.response?.data?.details) {
@@ -174,7 +193,7 @@ export const useFoodAnalysis = (): UseFoodAnalysisReturn => {
         setAnalyzing(false);
       }
     },
-    []
+    [],
   );
 
   const reset = useCallback(() => {
@@ -193,7 +212,6 @@ export const useFoodAnalysis = (): UseFoodAnalysisReturn => {
   };
 };
 
-
 interface MacroSuggestionData {
   calories: number;
   protein: number;
@@ -203,7 +221,10 @@ interface MacroSuggestionData {
 }
 
 interface UseMacroSuggestionReturn {
-  getSuggestion: (userDetails: string, age: number) => Promise<MacroSuggestionData | null>;
+  getSuggestion: (
+    userDetails: string,
+    age: number,
+  ) => Promise<MacroSuggestionData | null>;
   loading: boolean;
   error: string | null;
   data: MacroSuggestionData | null;
@@ -218,22 +239,29 @@ export const useMacroSuggestion = (): UseMacroSuggestionReturn => {
   const { getToken } = useAuth();
 
   const getSuggestion = useCallback(
-    async (userDetails: string, age: number): Promise<MacroSuggestionData | null> => {
+    async (
+      userDetails: string,
+      age: number,
+    ): Promise<MacroSuggestionData | null> => {
       setLoading(true);
       setError(null);
       setData(null);
 
       const token = await getToken();
-      console.log(userDetails)
+      console.log(userDetails);
       try {
-        const response = await api.post('/food/suggest', {
-          userDetails,
-          age,
-        }, {
-          headers: {
-            Authorization: `Bearer ${token}`,
+        const response = await api.post(
+          "/food/suggest",
+          {
+            userDetails,
+            age,
           },
-        });
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
 
         const apiData = response.data?.data;
         let macros;
@@ -257,14 +285,14 @@ export const useMacroSuggestion = (): UseMacroSuggestionReturn => {
           protein: macros?.protein ?? 0,
           carbs: macros?.carbs ?? 0,
           fat: macros?.fat ?? 0,
-          explanation: explanation ?? '',
+          explanation: explanation ?? "",
         };
 
         setData(result);
         return result;
       } catch (err: any) {
-        console.log(err.message,"meoi")
-        let message = 'Failed to fetch macro suggestion';
+        console.log(err.message, "meoi");
+        let message = "Failed to fetch macro suggestion";
         if (err.response?.data?.error) {
           message = err.response.data.error;
         } else if (err.response?.data?.details) {
@@ -297,8 +325,6 @@ export const useMacroSuggestion = (): UseMacroSuggestionReturn => {
   };
 };
 
-
-
 interface ExtractedFood {
   name: string;
   quantity?: string;
@@ -309,7 +335,7 @@ interface FoodExtractionResult {
   extracted?: ExtractedFood;
   error?: string;
   details?: string;
-  analysisType: 'natural_language_extraction';
+  analysisType: "natural_language_extraction";
   input: {
     prompt: string;
   };
@@ -333,7 +359,7 @@ export const useFoodExtraction = (): UseFoodExtractionReturn => {
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<FoodExtractionResult | null>(null);
-  
+
   const { getToken } = useAuth();
 
   const extractFood = useCallback(
@@ -343,21 +369,25 @@ export const useFoodExtraction = (): UseFoodExtractionReturn => {
       setResult(null);
 
       const token = await getToken();
-      
+
       try {
-        const response = await api.post<FoodExtractionResult>('/food/voice', {
-          prompt,
-        }, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        console.log(response.data,"data")
+        const response = await api.post<FoodExtractionResult>(
+          "/food/voice",
+          {
+            prompt,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+        console.log(response.data, "data");
         setResult(response.data);
         return response.data.extracted || null;
       } catch (err: any) {
-        let message = 'Failed to extract food from prompt';
-        
+        let message = "Failed to extract food from prompt";
+
         if (err.response?.data?.error) {
           message = err.response.data.error;
         } else if (err.response?.data?.details) {
@@ -372,10 +402,8 @@ export const useFoodExtraction = (): UseFoodExtractionReturn => {
         setExtracting(false);
       }
     },
-    []
+    [],
   );
-
-  
 
   const reset = useCallback(() => {
     setExtracting(false);

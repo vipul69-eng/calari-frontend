@@ -1,90 +1,144 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useEffect, useState } from "react"
-import { useUser as useClerkUser, SignedIn, SignedOut, SignInButton, useAuth } from "@clerk/nextjs"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { ArrowRight, Camera, Wand2, ListChecks, Star, Users, Shield, Zap } from "lucide-react"
-import { useUserStore } from "@/store/user-store"
-import { useGetUser, useUpsertUser } from "@/hooks/use-user"
-import { useMealCountStore } from "@/store/use-count"
-import { useRouter } from "next/navigation"
-import { InstallButton } from "@/components/install-pwa"
-import { InstallInstructions } from "@/components/install-instructions"
-import CalariLoading from "@/components/ui/loading"
+import type React from "react";
+import { useEffect, useState } from "react";
+import {
+  useUser as useClerkUser,
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  SignOutButton,
+  useAuth,
+} from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  ArrowRight,
+  Camera,
+  Wand2,
+  ListChecks,
+  Shield,
+  Zap,
+} from "lucide-react";
+import { useUserStore } from "@/store/user-store";
+import { useGetUser, useUpsertUser } from "@/hooks/use-user";
+import { useMealCountStore } from "@/store/use-count";
+import { useRouter } from "next/navigation";
+import { InstallButton } from "@/components/landing/install-pwa";
+import { InstallInstructions } from "@/components/landing/install-instructions";
+import CalariLoading from "@/components/ui/loading";
+import { useRecipeHook } from "@/hooks/use-recipes";
 
 export default function LandingApp() {
-  const { user: clerkUser } = useClerkUser()
-  const savedUser = useUserStore((state) => state.user)
-  const setUser = useUserStore((state) => state.setUser)
-  const clearUser = useUserStore((state) => state.clearUser)
-  const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const { user: clerkUser } = useClerkUser();
+  const savedUser = useUserStore((state) => state.user);
+  const setUser = useUserStore((state) => state.setUser);
+  const clearUser = useUserStore((state) => state.clearUser);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
-  const email = clerkUser?.primaryEmailAddress?.emailAddress
-  const { data: fetchedUser, error: fetchError, loading } = useGetUser(email)
-  const { upsertUser, data: upsertData } = useUpsertUser()
-  const { fetchMealCount } = useMealCountStore()
-  const router = useRouter()
-  const { getToken } = useAuth()
+  const email = clerkUser?.primaryEmailAddress?.emailAddress;
+  const { data: fetchedUser, error: fetchError, loading } = useGetUser(email);
+  const { upsertUser, data: upsertData } = useUpsertUser();
+  const { fetchMealCount } = useMealCountStore();
+  const router = useRouter();
+  const { getToken } = useAuth();
+  const fetchRecipes = useUserStore((state) => state.fetchRecipes);
 
-  const onGoToApp = () => {
-    getToken().then((t) => {
-      fetchMealCount(t as string).then(() => {
-        router.push("/home")
-      })
-    })
-  }
+  const onGoToApp = async () => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        console.error("No token found — cannot fetch user data.");
+        router.push("/login"); // Or fallback screen
+        return;
+      }
+
+      // Fetch meal count and recipes in parallel
+      if (!token) return;
+      await Promise.all([fetchMealCount(token), fetchRecipes(token)]);
+
+      if (savedUser) {
+        const profile = savedUser.profile || {};
+        const isProfileIncomplete =
+          !profile.name || !profile.age || !profile.macros;
+
+        router.push(isProfileIncomplete ? "/profile" : "/home");
+      } else {
+        router.push("/home");
+      }
+    } catch (err) {
+      console.error("Failed to fetch initial data:", err);
+      // Optional: show a toast or fallback navigation
+      router.push("/home");
+    }
+  };
+
+  const handleAutoRedirect = () => {
+    if (clerkUser && savedUser && !isRedirecting) {
+      setIsRedirecting(true);
+      onGoToApp();
+    }
+  };
 
   useEffect(() => {
-    // Show loading for at least 1 second, then check if auth state is determined
     const timer = setTimeout(() => {
-      setIsInitialLoading(false)
-    }, 1500)
+      setIsInitialLoading(false);
+    }, 1500);
 
-    return () => clearTimeout(timer)
-  }, [])
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!clerkUser && savedUser) {
-      clearUser()
+      clearUser();
     }
-  }, [clerkUser, savedUser, clearUser])
+  }, [clerkUser, savedUser, clearUser]);
 
   useEffect(() => {
     if (fetchedUser && email) {
-      setUser(fetchedUser)
+      setUser(fetchedUser);
     }
-  }, [fetchedUser, email, setUser])
+  }, [fetchedUser, email, setUser]);
 
   useEffect(() => {
     if (email && fetchError && !loading && !fetchedUser) {
-      const is404Error = fetchError.includes("User not found") || fetchError.includes("404")
+      const is404Error =
+        fetchError.includes("User not found") || fetchError.includes("404");
 
       if (is404Error) {
         upsertUser({
           email,
           plan: "basic",
           profile: {},
-        })
+        });
       }
     }
-  }, [email, fetchError, loading, fetchedUser, upsertUser])
+  }, [email, fetchError, loading, fetchedUser, upsertUser]);
 
   useEffect(() => {
     if (upsertData) {
-      setUser(upsertData)
+      setUser(upsertData);
     }
-  }, [upsertData, setUser])
+  }, [upsertData, setUser]);
 
   useEffect(() => {
-    if (clerkUser && savedUser && !loading) {
-      onGoToApp()
+    if (!isInitialLoading && clerkUser && savedUser) {
+      handleAutoRedirect();
     }
-  }, [clerkUser, savedUser, loading])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInitialLoading, clerkUser, savedUser]);
 
-  if (isInitialLoading || (clerkUser && !savedUser && loading)) {
-    return <CalariLoading />
+  if (
+    isInitialLoading ||
+    (clerkUser && !savedUser && loading) ||
+    isRedirecting
+  ) {
+    return <CalariLoading />;
+  }
+
+  if (clerkUser && savedUser) {
+    return <CalariLoading />;
   }
   return (
     <div className="min-h-screen bg-background">
@@ -97,10 +151,16 @@ export default function LandingApp() {
             </div>
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-8">
-                <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
+                <a
+                  href="#features"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
                   Features
                 </a>
-                <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">
+                <a
+                  href="#how-it-works"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
                   How it Works
                 </a>
                 <a
@@ -109,7 +169,10 @@ export default function LandingApp() {
                 >
                   App
                 </a>
-                <a href="#testimonials" className="text-muted-foreground hover:text-foreground transition-colors">
+                <a
+                  href="#testimonials"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
                   Reviews
                 </a>
               </div>
@@ -117,14 +180,31 @@ export default function LandingApp() {
             <div className="flex items-center space-x-4">
               <SignedOut>
                 <SignInButton mode="modal" appearance={{ theme: "simple" }}>
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="active:scale-95 transition-transform duration-75 bg-transparent"
+                  >
                     Sign In
                   </Button>
                 </SignInButton>
               </SignedOut>
               <SignedIn>
+                <SignOutButton>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="active:scale-95 transition-transform duration-75 bg-transparent"
+                  >
+                    Sign Out
+                  </Button>
+                </SignOutButton>
                 {savedUser ? (
-                  <Button onClick={onGoToApp} size="sm">
+                  <Button
+                    onClick={onGoToApp}
+                    size="sm"
+                    className="active:scale-95 transition-transform duration-75"
+                  >
                     Go to App
                   </Button>
                 ) : (
@@ -147,13 +227,17 @@ export default function LandingApp() {
               <span className="block text-primary">Food Tracking</span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl">
-              Transform your health journey with AI-powered nutrition tracking. Simply point, snap, and track your meals
-              with unprecedented accuracy.
+              Transform your health journey with AI-powered nutrition tracking.
+              Simply point, snap, and track your meals with unprecedented
+              accuracy.
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
               <SignedOut>
                 <SignInButton mode="modal" appearance={{ theme: "simple" }}>
-                  <Button size="lg" className="h-12 px-8 text-base font-semibold">
+                  <Button
+                    size="lg"
+                    className="h-12 px-8 text-base font-semibold active:scale-95 transition-transform duration-75"
+                  >
                     Start Tracking Free
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
@@ -161,12 +245,20 @@ export default function LandingApp() {
               </SignedOut>
               <SignedIn>
                 {savedUser ? (
-                  <Button onClick={onGoToApp} size="lg" className="h-12 px-8 text-base font-semibold">
+                  <Button
+                    onClick={onGoToApp}
+                    size="lg"
+                    className="h-12 px-8 text-base font-semibold active:scale-95 transition-transform duration-75"
+                  >
                     Go to App
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 ) : (
-                  <Button disabled size="lg" className="h-12 px-8 text-base font-semibold">
+                  <Button
+                    disabled
+                    size="lg"
+                    className="h-12 px-8 text-base font-semibold"
+                  >
                     Loading...
                   </Button>
                 )}
@@ -203,7 +295,8 @@ export default function LandingApp() {
               Everything you need to track nutrition
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Powerful features designed to make healthy eating effortless and sustainable.
+              Powerful features designed to make healthy eating effortless and
+              sustainable.
             </p>
           </div>
 
@@ -219,11 +312,6 @@ export default function LandingApp() {
                 title="Smart Recommendations"
                 description="Get personalized meal suggestions and nutrition tips based on your goals and dietary preferences."
               />
-              {/* <FeatureCard
-                icon={<ListChecks className="h-6 w-6" />}
-                title="Progress Tracking"
-                description="Beautiful dashboards and insights help you stay motivated and on track with your health goals."
-              /> */}
               <FeatureCard
                 icon={<Zap className="h-6 w-6" />}
                 title="Lightning Fast"
@@ -234,11 +322,6 @@ export default function LandingApp() {
                 title="Privacy First"
                 description="Your health data stays secure with end-to-end encryption and complete privacy controls."
               />
-              {/* <FeatureCard
-                icon={<Users className="h-6 w-6" />}
-                title="Community Support"
-                description="Connect with like-minded individuals and share your journey with our supportive community."
-              /> */}
             </dl>
           </div>
         </div>
@@ -248,9 +331,12 @@ export default function LandingApp() {
       <section id="how-it-works" className="bg-muted py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">How Calari Works</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              How Calari Works
+            </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Three simple steps to transform your nutrition tracking experience.
+              Three simple steps to transform your nutrition tracking
+              experience.
             </p>
           </div>
 
@@ -279,8 +365,6 @@ export default function LandingApp() {
         </div>
       </section>
 
-     
-
       {/* CTA Section */}
       <section className="bg-primary">
         <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
@@ -289,12 +373,17 @@ export default function LandingApp() {
               Ready to transform your nutrition?
             </h2>
             <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-primary-foreground/90">
-              Join thousands of users who have already revolutionized their health journey with Calari.
+              Join thousands of users who have already revolutionized their
+              health journey with Calari.
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <SignedOut>
                 <SignInButton mode="modal" appearance={{ theme: "simple" }}>
-                  <Button size="lg" variant="secondary" className="h-12 px-8 text-base font-semibold">
+                  <Button
+                    size="lg"
+                    variant="secondary"
+                    className="h-12 px-8 text-base font-semibold active:scale-95 transition-transform duration-75"
+                  >
                     Get Started Free
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
@@ -306,13 +395,18 @@ export default function LandingApp() {
                     onClick={onGoToApp}
                     size="lg"
                     variant="secondary"
-                    className="h-12 px-8 text-base font-semibold"
+                    className="h-12 px-8 text-base font-semibold active:scale-95 transition-transform duration-75"
                   >
                     Go to App
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 ) : (
-                  <Button disabled size="lg" variant="secondary" className="h-12 px-8 text-base font-semibold">
+                  <Button
+                    disabled
+                    size="lg"
+                    variant="secondary"
+                    className="h-12 px-8 text-base font-semibold"
+                  >
                     Loading...
                   </Button>
                 )}
@@ -330,10 +424,16 @@ export default function LandingApp() {
               <h3 className="text-xl font-bold text-primary">Calari</h3>
             </div>
             <div className="flex items-center space-x-6 text-sm text-muted-foreground">
-              <a href="/privacy" className="hover:text-foreground transition-colors">
+              <a
+                href="/legal/privacy"
+                className="hover:text-foreground transition-colors"
+              >
                 Privacy Policy
               </a>
-              <a href="/terms" className="hover:text-foreground transition-colors">
+              <a
+                href="/legal/terms"
+                className="hover:text-foreground transition-colors"
+              >
                 Terms of Service
               </a>
               <a
@@ -352,7 +452,7 @@ export default function LandingApp() {
         </div>
       </footer>
     </div>
-  )
+  );
 }
 
 function FeatureCard({
@@ -360,9 +460,9 @@ function FeatureCard({
   title,
   description,
 }: {
-  icon: React.ReactNode
-  title: string
-  description: string
+  icon: React.ReactNode;
+  title: string;
+  description: string;
 }) {
   return (
     <div className="flex flex-col">
@@ -376,7 +476,7 @@ function FeatureCard({
         <p className="flex-auto">{description}</p>
       </dd>
     </div>
-  )
+  );
 }
 
 function StepCard({
@@ -385,50 +485,23 @@ function StepCard({
   description,
   icon,
 }: {
-  step: string
-  title: string
-  description: string
-  icon: React.ReactNode
+  step: string;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
 }) {
   return (
     <Card className="relative overflow-hidden">
       <CardContent className="p-8">
         <div className="flex items-center gap-4 mb-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">{icon}</div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            {icon}
+          </div>
           <span className="text-4xl font-bold text-primary/20">{step}</span>
         </div>
         <h3 className="text-xl font-semibold text-foreground mb-2">{title}</h3>
         <p className="text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
-  )
-}
-
-function TestimonialCard({
-  quote,
-  author,
-  role,
-  rating,
-}: {
-  quote: string
-  author: string
-  role: string
-  rating: number
-}) {
-  return (
-    <Card>
-      <CardContent className="p-8">
-        <div className="flex items-center gap-1 mb-4">
-          {[...Array(rating)].map((_, i) => (
-            <Star key={i} className="h-4 w-4 fill-primary text-primary" />
-          ))}
-        </div>
-        <blockquote className="text-foreground mb-6">&quot;{quote}&quot;</blockquote>
-        <div>
-          <div className="font-semibold text-foreground">{author}</div>
-          <div className="text-sm text-muted-foreground">{role}</div>
-        </div>
-      </CardContent>
-    </Card>
-  )
+  );
 }

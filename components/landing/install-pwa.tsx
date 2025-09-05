@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Download, Smartphone, Share, Plus, Sparkles } from "lucide-react"
+import { Download, Smartphone, Share, Plus } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 
 export const InstallButton = () => {
@@ -109,7 +109,7 @@ export const IOSInstallInstructions = () => {
 
         <div className="mt-4 p-3 rounded-lg bg-primary/10 border border-primary/20">
           <p className="text-xs text-center text-primary font-medium">
-            ✨ Get the full app experience with offline access and faster loading
+            Get the full app experience with offline access and faster loading
           </p>
         </div>
       </CardContent>

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
-import { Check, CreditCard, Crown, DollarSign, LogOut, Moon, Music2, Sparkles, Sun, User, Wallet } from "lucide-react"
+import { Check, ChevronLeft, CreditCard, Crown, DollarSign, LogOut, Moon, Sun, User, Wallet } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,14 +97,19 @@ export default function SettingsPage() {
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-2xl px-4 py-8 space-y-8">
         <div className="text-center space-y-2">
-          <h1
-            onClick={() => {
-              router.push("/payments")
-            }}
-            className="text-3xl font-heading text-foreground"
-          >
-            Settings
-          </h1>
+          <div className="flex items-center justify-center relative mb-4">
+            <Button variant="ghost" size="sm" onClick={() => router.back()} className="absolute left-0 p-2">
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <h1
+              onClick={() => {
+                router.push("/payments")
+              }}
+              className="text-3xl font-heading text-foreground"
+            >
+              Settings
+            </h1>
+          </div>
           <p className="text-muted-foreground">Manage your account preferences and settings</p>
         </div>
 
@@ -330,7 +335,6 @@ function PlanOption(props: {
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          
           <div>
             <div className="flex items-center gap-2">
               <div className="font-semibold text-foreground">{title}</div>

@@ -1,3 +1,4 @@
+/** eslint-disable @typescript-eslint/no-explicit-Any */
 /** eslint-disable react-hooks/exhaustive-deps */
 /** eslint-disable @typescript-eslint/no-explicit-Any */
 "use client";
@@ -8,16 +9,18 @@ import { useAuth } from "@clerk/nextjs";
 import { Droplet, Drumstick, Flame, Plus, Wheat, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import {
   useAddRecipe,
+  useCurrentDayNutrition,
   useNutritionStore,
   useRecipes,
   useRecipeStore,
   useUserStore,
 } from "@/store";
+import { useFoodAnalysis } from "@/hooks/use-food";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
 type AnalysisProps = {
@@ -983,3 +986,330 @@ const StatCard = ({
     <span className="text-xs">{label}</span>
   </div>
 );
+
+interface AnalysisWrapperProps {
+  // Analysis display props
+  uploading?: boolean;
+  analyzing?: boolean;
+  extractingState?: boolean;
+  uploadError?: string | null;
+  analysisError?: string | null;
+  extractionError?: string | null;
+  voiceError?: string | null;
+  voiceText?: string;
+  progress?: number;
+  isSafari?: boolean;
+
+  // Analysis data
+  analysisResult?: Any;
+
+  // UI state
+  isOpen: boolean;
+  onClose: () => void;
+
+  // Optional handlers
+  handleRetry: () => void;
+  openManualCard: () => void;
+
+  // Photo data (for camera scans)
+  photoUrl?: string;
+
+  // Navigation options
+  redirectAfterAdd?: string; // Where to go after adding meal
+  showEditButton?: boolean; // Whether to show edit button for image analysis
+}
+
+export function AnalysisWrapper({
+  uploading = false,
+  analyzing = false,
+  extractingState = false,
+  uploadError = null,
+  analysisError = null,
+  extractionError = null,
+  voiceError = null,
+  voiceText = "",
+  progress = 0,
+  isSafari = false,
+  analysisResult,
+  isOpen,
+  onClose,
+  handleRetry,
+  openManualCard,
+  photoUrl,
+  redirectAfterAdd = "/home",
+  showEditButton = true,
+}: AnalysisWrapperProps) {
+  const router = useRouter();
+  const { getToken } = useAuth();
+  const { trackMeal } = useDailyMeals();
+  const { analyzeText } = useFoodAnalysis();
+  const { calculateAndSaveDailyCalories } = useNutritionStore();
+  const currentDayNutrition = useCurrentDayNutrition();
+
+  // Local state for quantity editing
+  const [isEditingQuantity, setIsEditingQuantity] = useState(false);
+  const [editedQuantity, setEditedQuantity] = useState("");
+  const [hasEditedQuantity, setHasEditedQuantity] = useState(false);
+  const [updatedMacros, setUpdatedMacros] = useState<Any>(null);
+  const [isUpdatingMacros, setIsUpdatingMacros] = useState(false);
+  const [tracking, setTracking] = useState(false);
+
+  // Derived data
+  const defaultFood = { name: "Avocado Toast", quantity: "1 slice" };
+  const currentFood = analysisResult?.data?.foodItems?.[0] || defaultFood;
+
+  const clearAllStates = useCallback(() => {
+    setIsEditingQuantity(false);
+    setEditedQuantity("");
+    setHasEditedQuantity(false);
+    setUpdatedMacros(null);
+    setIsUpdatingMacros(false);
+    setTracking(false);
+  }, []);
+
+  const handleEditQuantity = useCallback(() => {
+    if (hasEditedQuantity) return; // Only allow editing once
+
+    const currentFood = analysisResult?.data?.foodItems?.[0];
+    if (currentFood) {
+      setEditedQuantity(currentFood.quantity);
+      setIsEditingQuantity(true);
+    }
+  }, [analysisResult, hasEditedQuantity]);
+
+  const handleUpdateMacros = useCallback(async () => {
+    if (!editedQuantity.trim() || !analysisResult?.data?.foodItems?.[0]) return;
+
+    const currentFood = analysisResult.data.foodItems[0];
+    setIsUpdatingMacros(true);
+
+    try {
+      // Make API call similar to text analysis but for quantity update
+      const result = await analyzeText(
+        currentFood.name,
+        editedQuantity.trim(),
+        undefined, // userContext would need to be passed as prop if needed
+      );
+
+      if (result?.success && result?.data) {
+        setUpdatedMacros(result.data.totalMacros);
+        setHasEditedQuantity(true);
+        setIsEditingQuantity(false);
+
+        // Update the analysis result with new quantity and macros
+        const updatedResult = {
+          ...analysisResult,
+          data: {
+            ...analysisResult.data,
+            foodItems: [
+              {
+                ...currentFood,
+                quantity: editedQuantity.trim(),
+              },
+            ],
+            totalMacros: result.data.totalMacros,
+          },
+        };
+
+        // Store updated result for tracking
+        sessionStorage.setItem(
+          "foodAnalysisData",
+          JSON.stringify({
+            analysisResult: updatedResult,
+            photoUrl,
+            analysisType: "image_with_quantity_edit",
+          }),
+        );
+      }
+    } catch (error) {
+      console.error("Error updating macros:", error);
+    } finally {
+      setIsUpdatingMacros(false);
+    }
+  }, [editedQuantity, analysisResult, photoUrl, analyzeText]);
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditingQuantity(false);
+    setEditedQuantity("");
+  }, []);
+
+  const handleAddMeal = useCallback(async () => {
+    if (!analysisResult?.data || !currentDayNutrition) return;
+
+    setTracking(true);
+    try {
+      // Create combined meal name from all items
+      const mealName = analysisResult.data.foodItems
+        .map((item: Any) => item.name)
+        .join(", ");
+
+      // Create combined quantity description
+      const combinedQuantity = analysisResult.data.foodItems
+        .map((item: Any) => `${item.quantity} of ${item.name}`)
+        .join(", ");
+
+      const token = await getToken();
+      if (!token) return;
+
+      // Use updated macros if quantity was edited
+      const finalMacros = updatedMacros || analysisResult.data.totalMacros;
+
+      // Track the meal using store logic
+      await trackMeal(
+        mealName,
+        combinedQuantity,
+        finalMacros,
+        analysisResult,
+        photoUrl,
+      );
+
+      const currentDate = new Date().toISOString().split("T")[0];
+
+      // Update today's consumed calories by recalculating totals
+      await calculateAndSaveDailyCalories(currentDate, token);
+
+      clearAllStates();
+      onClose();
+
+      // Navigate to specified redirect location
+      router.push(redirectAfterAdd);
+    } catch (error) {
+      console.error("Error adding meal:", error);
+    } finally {
+      setTracking(false);
+    }
+  }, [
+    analysisResult,
+    currentDayNutrition,
+    updatedMacros,
+    photoUrl,
+    getToken,
+    trackMeal,
+    calculateAndSaveDailyCalories,
+    clearAllStates,
+    onClose,
+    router,
+    redirectAfterAdd,
+  ]);
+
+  const handleRecalculateMeal = useCallback(
+    async (items: { name: string; quantity: string }[]) => {
+      try {
+        // Build a combined quantity summary for the analyzer
+        const combinedQuantity = items
+          .map((i) => `${i.quantity} of ${i.name}`)
+          .join(", ");
+        const res = await analyzeText("Meal", combinedQuantity, undefined);
+        if (res?.success && res?.data) {
+          return {
+            totalMacros: res.data.totalMacros,
+            suggestion: res.data.suggestion,
+          };
+        }
+      } catch (e) {
+        console.error("Error recalculating meal:", e);
+      }
+      return null;
+    },
+    [analyzeText],
+  );
+
+  const handleClose = useCallback(() => {
+    clearAllStates();
+    onClose();
+  }, [clearAllStates, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-30 transition-opacity duration-300 ease-out opacity-100 pointer-events-auto"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="h-full w-full bg-background/95 backdrop-blur-xl border-0 shadow-2xl">
+        <div className="relative flex justify-end items-end px-6 pt-6 pb-0 space-x-0">
+          {showEditButton &&
+            analysisResult?.analysisType === "image" &&
+            openManualCard && (
+              <button
+                type="button"
+                aria-label="Edit"
+                onClick={() => {
+                  handleClose();
+                  openManualCard();
+                }}
+                className="inline-flex items-center justify-center p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors duration-200"
+              >
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+              </button>
+            )}
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={handleClose}
+            className="inline-flex items-center justify-center p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors duration-200"
+          >
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-6 pb-8 h-[calc(100vh-64px)] overflow-y-auto">
+          <Analysis
+            uploading={uploading}
+            analyzing={analyzing}
+            extractingState={extractingState}
+            uploadError={uploadError}
+            onClose={handleClose}
+            analysisError={analysisError}
+            extractionError={extractionError}
+            voiceError={voiceError}
+            voiceText={voiceText}
+            progress={progress}
+            isSafari={isSafari}
+            handleRetry={handleRetry as Any}
+            analysisData={analysisResult}
+            closeCard={handleClose}
+            openManualCard={openManualCard as Any}
+            currentFood={currentFood}
+            hasEditedQuantity={hasEditedQuantity}
+            isEditingQuantity={isEditingQuantity}
+            handleEditQuantity={handleEditQuantity}
+            editedQuantity={editedQuantity}
+            setEditedQuantity={setEditedQuantity}
+            isUpdatingMacros={isUpdatingMacros}
+            handleUpdateMacros={handleUpdateMacros}
+            handleCancelEdit={handleCancelEdit}
+            tracking={tracking}
+            onRecalculateMeal={handleRecalculateMeal}
+            onMealDraftChange={undefined}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1133,6 +1133,7 @@ export default function ProfilePage() {
                       </div>*/}
                     </div>
                   </span>
+
                   <svg
                     className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors duration-200"
                     fill="none"

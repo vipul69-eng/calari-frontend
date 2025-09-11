@@ -24,8 +24,8 @@ import {
   VoiceAnimation,
 } from "@/components/track/CameraComponents";
 import React from "react";
+import { AnalysisWrapper } from "@/components/track/analysis";
 import { useCurrentDayNutrition, useUserStore } from "@/store";
-import { Analysis } from "@/components/track/analysis";
 
 export default function CameraPage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -358,7 +358,7 @@ export default function CameraPage() {
     try {
       if ("vibrate" in navigator) navigator.vibrate?.(10);
     } catch {}
-    router.push("/manual-entry");
+    router.push("/track/manual");
   }, [router]);
 
   const handleRetry = useCallback(() => {
@@ -559,7 +559,7 @@ export default function CameraPage() {
         </div>
       </div>
 
-      <Analysis
+      <AnalysisWrapper
         uploading={uploading}
         analyzing={analyzing}
         extractingState={extractingState}
@@ -570,7 +570,7 @@ export default function CameraPage() {
         voiceText={voiceText}
         progress={progress}
         isSafari={isSafari}
-        analysisResult={analysisResult as any}
+        analysisResult={analysisResult}
         isOpen={isCardOpen}
         onClose={closeCard}
         handleRetry={handleRetry}

@@ -3,7 +3,15 @@ import Link from "next/link";
 import type React from "react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Home, TrendingUp, User, ChefHat, Scan, PlusIcon } from "lucide-react";
+import {
+  Home,
+  TrendingUp,
+  User,
+  ChefHat,
+  Scan,
+  PlusIcon,
+  Edit2,
+} from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -91,13 +99,22 @@ export default function AppNav({
           </PopoverTrigger>
           <PopoverContent className="w-48 p-2 mx-2" align="center" side="top">
             <div className="flex flex-col gap-1">
-              <Link href="/track" onClick={handleMenuItemClick}>
+              <Link href="/track/camera" onClick={handleMenuItemClick}>
                 <Button
                   variant="ghost"
                   className="w-full justify-start gap-3 h-12"
                 >
                   <Scan className="h-5 w-5" />
                   <span>Scan</span>
+                </Button>
+              </Link>
+              <Link href="/track/manual" onClick={handleMenuItemClick}>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-3 h-12"
+                >
+                  <Edit2 className="h-5 w-5" />
+                  <span>Log</span>
                 </Button>
               </Link>
               <Link href="/recipes" onClick={handleMenuItemClick}>

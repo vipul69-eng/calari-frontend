@@ -1,12 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
 import RecipeCard from "@/components/recipe-card";
-import {
-  useAddRecipe,
-  useRecipes,
-  useRemoveRecipe,
-  useUserStore,
-} from "@/store/user-store";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
@@ -16,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Search, Plus, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { useAddRecipe, useRecipes, useRemoveRecipe } from "@/store";
 
 function useDebouncedValue<T>(value: T, delay = 350) {
   const [debounced, setDebounced] = React.useState(value);
@@ -49,7 +44,6 @@ export default function Recipes() {
   const isTyping = query !== debouncedQuery;
   const addRecipe = useAddRecipe();
   const [showBottomSheet, setShowBottomSheet] = useState(false);
-  const { syncRecipes } = useUserStore();
   const [isAddingCustomRecipe, setIsAddingCustomRecipe] = useState(false);
   const [customRecipe, setCustomRecipe] = useState({
     mealName: "",
@@ -175,8 +169,7 @@ export default function Recipes() {
         carbs: "",
         fat: "",
       });
-    } catch (error) {
-      console.error("Failed to add custom recipe:", error);
+    } catch {
     } finally {
       setIsAddingCustomRecipe(false);
     }

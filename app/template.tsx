@@ -1,14 +1,34 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { motion } from "framer-motion"
+import type React from "react";
+import { motion } from "framer-motion";
+import { usePathname } from "next/navigation";
 
 export default function Transition({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+
+  // Define which routes should use the animation
+  const animatedRoutes = [
+    "/home",
+    "/track",
+    "/profile",
+    "/legal",
+    "/progress",
+    "/recipes",
+  ];
+  const shouldAnimate = animatedRoutes.some((route) =>
+    pathname.startsWith(route),
+  );
+
+  if (!shouldAnimate) {
+    // If route not in list, render children without animation
+    return <>{children}</>;
+  }
+
   return (
     <motion.div
       initial={{
@@ -40,5 +60,5 @@ export default function Transition({
     >
       {children}
     </motion.div>
-  )
+  );
 }

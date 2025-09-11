@@ -2,9 +2,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AxiosError } from "axios";
 import { api } from "@/lib/api"; // your axios instance
-import { useUserStore } from "@/store/user-store";
 import { useAuth } from "@clerk/nextjs";
 import { Plan, User, UserProfile } from "@/types/store";
+import { useUserStore } from "@/store";
 
 export interface UpsertUserPayload {
   email: string;
@@ -143,7 +143,6 @@ export function useUserSubscriptions() {
           Authorization: `Bearer ${token}`,
         },
       });
-      console.log(res.data);
       setSubscriptions(res.data.subscriptions);
     } catch (err) {
       const axiosErr = err as AxiosError<any>;

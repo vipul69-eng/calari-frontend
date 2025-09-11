@@ -1,8 +1,8 @@
 "use client";
 
-import { useRecipes, useUpdateRecipe } from "@/store/user-store";
 import { Drumstick } from "lucide-react";
 import RecipeCard from "./recipe-card";
+import { useRecipes } from "@/store";
 
 export default function MyRecipes() {
   const recipes = useRecipes();
@@ -22,9 +22,7 @@ export default function MyRecipes() {
     <div className="space-y-4">
       <div className="text-center py-12">
         <div
-          onClick={() => {
-            console.log(recipes, "recipes");
-          }}
+          onClick={() => {}}
           className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4"
         >
           <Drumstick className="w-8 h-8 text-muted-foreground" />

@@ -38,7 +38,6 @@ export function useRecipeHook(autoFetch: boolean = true) {
         setError("Failed to load recipes");
       }
     } catch (err: any) {
-      console.error("fetchRecipes error:", err);
       setError(err.message || "Failed to load recipes");
     } finally {
       setLoading(false);
@@ -60,7 +59,6 @@ export function useRecipeHook(autoFetch: boolean = true) {
         }
         throw new Error("Failed to create recipe");
       } catch (err: any) {
-        console.error("createRecipe error:", err);
         setError(err.message || "Failed to create recipe");
         throw err;
       } finally {
@@ -87,7 +85,6 @@ export function useRecipeHook(autoFetch: boolean = true) {
         }
         throw new Error("Failed to update recipe");
       } catch (err: any) {
-        console.error("updateRecipe error:", err);
         setError(err.message || "Failed to update recipe");
         throw err;
       } finally {
@@ -112,7 +109,6 @@ export function useRecipeHook(autoFetch: boolean = true) {
         }
         throw new Error("Failed to delete recipe");
       } catch (err: any) {
-        console.error("deleteRecipe error:", err);
         setError(err.message || "Failed to delete recipe");
         throw err;
       } finally {
@@ -141,7 +137,6 @@ export function useRecipeHook(autoFetch: boolean = true) {
         }
         throw new Error("Failed to sync recipes");
       } catch (err: any) {
-        console.error("syncRecipes error:", err);
         setError(err.message || "Failed to sync recipes");
         throw err;
       } finally {

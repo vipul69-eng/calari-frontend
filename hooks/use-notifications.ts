@@ -4,7 +4,6 @@ export function useNotification() {
   const sendNotification = useCallback(
     (title: string, options?: NotificationOptions) => {
       if (!("Notification" in window)) {
-        console.warn("❌ This browser does not support notifications.");
         return;
       }
 
@@ -17,7 +16,6 @@ export function useNotification() {
           }
         });
       } else {
-        console.warn("❌ Notifications are blocked by the user.");
       }
     },
     [],

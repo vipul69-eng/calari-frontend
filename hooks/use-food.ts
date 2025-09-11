@@ -157,7 +157,6 @@ export const useFoodAnalysis = (): UseFoodAnalysisReturn => {
       setAnalyzing(true);
       setError(null);
       setResult(null);
-      console.log(context);
       const token = await getToken();
       try {
         const response = await api.post<FoodAnalysisResult>(
@@ -248,7 +247,6 @@ export const useMacroSuggestion = (): UseMacroSuggestionReturn => {
       setData(null);
 
       const token = await getToken();
-      console.log(userDetails);
       try {
         const response = await api.post(
           "/food/suggest",
@@ -291,7 +289,6 @@ export const useMacroSuggestion = (): UseMacroSuggestionReturn => {
         setData(result);
         return result;
       } catch (err: any) {
-        console.log(err.message, "meoi");
         let message = "Failed to fetch macro suggestion";
         if (err.response?.data?.error) {
           message = err.response.data.error;
@@ -382,7 +379,6 @@ export const useFoodExtraction = (): UseFoodExtractionReturn => {
             },
           },
         );
-        console.log(response.data, "data");
         setResult(response.data);
         return response.data.extracted || null;
       } catch (err: any) {

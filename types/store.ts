@@ -14,6 +14,7 @@ export interface UserProfile {
   age?: number;
   profileText?: string;
   macros?: NutritionGoals;
+  token?: string;
 }
 
 export interface User {
@@ -32,11 +33,13 @@ export interface FoodEntry {
   protein: number;
   carbs: number;
   fat: number;
-  analysisType: 'image' | 'text';
+  analysisType: "image" | "text";
   imageUrl?: string;
   analysisData?: any;
   createdAt: string;
 }
+
+export type Recipe = any;
 
 export interface DailyNutrition {
   date: string;
@@ -49,45 +52,47 @@ export interface DailyNutrition {
   lastModified: string;
 }
 
-export interface UserState {
-  user: User | null;
-  dailyNutrition: Record<string, DailyNutrition>;
-  currentDate: string;
-  isSyncing: boolean;
-  lastSyncTime: string | null;
-  
-  // Cache for stable references
-  _cache: {
-    currentDayNutrition: DailyNutrition | null;
-    userGoals: NutritionGoals | null;
-    remainingMacros: NutritionGoals | null;
-    progressPercentages: NutritionGoals | null;
-    // Cache keys for validation
-    currentDayKey: string | null;
-    userGoalsKey: string | null;
-    remainingMacrosKey: string | null;
-    progressPercentagesKey: string | null;
+export interface StoreCache<T = any> {
+  [key: string]: {
+    data: T;
+    key: string;
+    timestamp: number;
   };
-  
-  setUser: (user: User) => void;
-  updateUserProfile: (profileUpdates: Partial<UserProfile>) => void;
-  updateNutritionGoals: (goals: NutritionGoals) => void;
-  clearUser: () => void;
-  
-  setCurrentDate: (date: string) => void;
-  addFoodEntry: (date: string, entry: Omit<FoodEntry, 'id' | 'createdAt'>, token?: string) => void;
-  removeFoodEntry: (date: string, entryId: string, token?: string) => void;
-  updateFoodEntry: (date: string, entryId: string, updates: Partial<FoodEntry>, token?: string) => void;
-  syncNutritionData: (token?: string) => Promise<void>;
-  fetchDayNutrition: (date: string, token?: string) => Promise<void>;
-  calculateAndSaveDailyCalories: (date?: string, token?: string) => Promise<void>;
-  
-  // Stable computed getters
-  getCurrentDayNutrition: () => DailyNutrition;
-  getRemainingMacros: (date?: string) => NutritionGoals;
-  getProgressPercentages: (date?: string) => NutritionGoals;
-  getUserGoals: () => NutritionGoals;
-  
-  // Cache invalidation helper
-  _invalidateCache: (keys?: string[]) => void;
+}
+
+export interface MealHistoryEntry {
+  date: string;
+  totalMacros: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+  foodEntries: FoodEntry[];
+  lastModified: string;
+}
+
+export interface NutritionAnalytics {
+  totalDays: number;
+  averageMacros: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+  totalMacros: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+  dailyData: Array<{
+    date: string;
+    macros: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+    };
+  }>;
 }

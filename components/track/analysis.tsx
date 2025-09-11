@@ -4,7 +4,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDailyMeals } from "@/hooks/use-meals";
-import { useAddRecipe, useRecipes, useUserStore } from "@/store/user-store";
 import { useAuth } from "@clerk/nextjs";
 import { Droplet, Drumstick, Flame, Plus, Wheat, X } from "lucide-react";
 import Image from "next/image";
@@ -12,6 +11,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import {
+  useAddRecipe,
+  useNutritionStore,
+  useRecipes,
+  useRecipeStore,
+  useUserStore,
+} from "@/store";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
 type AnalysisProps = {
@@ -95,7 +101,8 @@ export function Analysis(props: AnalysisProps) {
     fat: string;
   } | null>(null);
   const { getToken } = useAuth();
-  const { calculateAndSaveDailyCalories, syncRecipes } = useUserStore();
+  const { calculateAndSaveDailyCalories } = useNutritionStore();
+  const { syncRecipes } = useRecipeStore();
   const { trackMeal } = useDailyMeals();
   const addRecipe = useAddRecipe();
   const router = useRouter();
@@ -281,7 +288,6 @@ export function Analysis(props: AnalysisProps) {
       clearAllStates();
       router.push("/home");
     } catch (error) {
-      console.error("Error tracking meal:", error);
     } finally {
       setIsTrackingLocal(false);
     }
@@ -329,12 +335,10 @@ export function Analysis(props: AnalysisProps) {
       await syncRecipes(token);
       clearAllStates();
     } catch (error) {
-      console.error("Error adding recipe:", error);
     } finally {
       setIsSavingRecipe(false);
     }
     setRecipeAdded(true);
-    console.log("done");
   };
   const clearAllStates = () => {
     setAddedItems([]);

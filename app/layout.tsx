@@ -6,7 +6,7 @@ import { ThemeProvider } from "@/wrappers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { ClerkProvider } from "@clerk/nextjs";
 import { HydrationWrapper } from "@/wrappers/hydration-wrapper";
-import NavBar from "@/components/nav/nav-bar";
+import { OuterLoading } from "@/components/ui/loading";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -284,7 +284,6 @@ export default function RootLayout({
             <HydrationWrapper>
               <Toaster />
               {children}
-              <NavBar hiddenRoutes={["/", "/track", "/legal"]} />
             </HydrationWrapper>
           </ThemeProvider>
         </ClerkProvider>

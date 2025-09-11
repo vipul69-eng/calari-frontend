@@ -148,6 +148,15 @@ export const Ring: React.FC<RingProps> = ({ value, center, sub }) => {
   );
 };
 
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+
 export function MealCard({
   meal,
   deleteMeal,
@@ -157,115 +166,156 @@ export function MealCard({
   deleteMeal: () => void;
   isDeleting: boolean;
 }) {
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const handleDelete = () => {
     deleteMeal();
-    setIsPopoverOpen(false);
+    setIsSheetOpen(false);
   };
 
-  const handleCancel = () => {
-    setIsPopoverOpen(false);
+  const handleClose = () => {
+    setIsSheetOpen(false);
   };
 
   return (
-    <article
-      className={`p-4 pb-8 shadow-sm transition-all border-b duration-300 hover:shadow-md backdrop-blur-sm relative transform-gpu
-        ${
-          isDeleting
-            ? "opacity-0 scale-95 translate-y-[-10px] pointer-events-none"
-            : "opacity-100 scale-100 translate-y-0"
-        }
-        `}
-      aria-label={`${meal.title}, ${meal.kcal} kilocalories`}
-    >
-      {/* Rest of your MealCard content stays the same */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-start justify-between gap-4 w-full">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                className="text-left text-pretty font-semibold tracking-tight text-foreground hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded"
-                aria-haspopup="dialog"
-                aria-label={`View foods in ${meal.title}`}
-              >
-                <h3 className="text-lg md:text-xl">
-                  {meal.title
-                    .split(" ")
-                    .map(
-                      (word) =>
-                        word.charAt(0).toUpperCase() +
-                        word.slice(1).toLowerCase(),
-                    )
-                    .join(" ")
-                    .slice(0, 25)}
-                  {meal.title.length > 25 ? "..." : ""}
-                </h3>
-              </button>
-
-              {/* Delete Popover */}
-              <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    aria-label={`Delete ${meal.title}`}
-                    className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
-                    disabled={isDeleting}
-                  >
-                    <Trash className="h-4 w-4" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-48 p-3 space-y-2">
-                  <p className="text-sm font-medium">Delete this meal?</p>
-                  <p className="text-xs text-muted-foreground">
-                    This action cannot be undone.
-                  </p>
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground"
-                      onClick={handleCancel}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleDelete}
-                      disabled={isDeleting}
-                    >
-                      {isDeleting ? "Deleting..." : "Delete"}
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+      <SheetTrigger asChild>
+        <article
+          className={`p-4 pb-8 shadow-sm transition-all duration-300 hover:shadow-md backdrop-blur-sm relative transform-gpu cursor-pointer active:scale-[0.98] active:bg-muted/50
+            ${
+              isDeleting
+                ? "opacity-0 scale-95 translate-y-[-10px] pointer-events-none"
+                : "opacity-100 scale-100 translate-y-0"
+            }
+            `}
+          aria-label={`${meal.title}, ${meal.kcal} kilocalories`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex items-start justify-between gap-4 w-full">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-lg md:text-xl font-semibold tracking-tight text-foreground text-pretty">
+                    {meal.title
+                      .split(" ")
+                      .map(
+                        (word) =>
+                          word.charAt(0).toUpperCase() +
+                          word.slice(1).toLowerCase(),
+                      )
+                      .join(" ")}
+                  </h3>
+                </div>
+              </div>
             </div>
-            {meal.grams ? (
-              <p className="mt-1 text-sm text-muted-foreground text-pretty">
-                {meal.grams}
-              </p>
-            ) : null}
+          </div>
+
+          <div className="flex flex-col gap-2 mt-4">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">
+                {Math.round(meal.kcal)}
+              </span>
+              <span className="text-muted-foreground font-medium">kcal</span>
+            </div>
+            <MacrosRow
+              protein={meal.macros.protein}
+              carbs={meal.macros.carbs}
+              fat={meal.macros.fat}
+            />
+          </div>
+        </article>
+      </SheetTrigger>
+
+      <SheetContent
+        side="bottom"
+        className="rounded-t-3xl border-t-0 px-6 py-8"
+      >
+        <SheetHeader className="text-center space-y-4">
+          <SheetTitle className="text-2xl font-bold">
+            {meal.title
+              .split(" ")
+              .map(
+                (word) =>
+                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
+              )
+              .join(" ")}
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-8 space-y-6">
+          <div className="bg-neutral-900 rounded-2xl p-6 space-y-4">
+            <div className="text-center">
+              <div className="text-4xl font-extrabold text-foreground mb-2">
+                {Math.round(meal.kcal)}
+              </div>
+              <div className="text-muted-foreground font-medium">calories</div>
+            </div>
+
+            {meal.grams && (
+              <div className="text-center pt-2 border-t border-border/50">
+                <div className="text-sm text-muted-foreground">Quantity</div>
+                <div className="text-lg font-semibold text-foreground">
+                  {meal.grams}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border/50">
+              <div className="text-center">
+                <Drumstick className="size-5 text-muted-foreground mx-auto mb-2" />
+                <div className="text-sm text-muted-foreground">Protein</div>
+                <div className="text-lg font-semibold text-foreground">
+                  {Number.isInteger(meal.macros.protein)
+                    ? meal.macros.protein.toFixed(0)
+                    : meal.macros.protein.toFixed(1)}
+                  g
+                </div>
+              </div>
+              <div className="text-center">
+                <Wheat className="size-5 text-muted-foreground mx-auto mb-2" />
+                <div className="text-sm text-muted-foreground">Carbs</div>
+                <div className="text-lg font-semibold text-foreground">
+                  {Number.isInteger(meal.macros.carbs)
+                    ? meal.macros.carbs.toFixed(0)
+                    : meal.macros.carbs.toFixed(1)}
+                  g
+                </div>
+              </div>
+              <div className="text-center">
+                <Droplet className="size-5 text-muted-foreground mx-auto mb-2" />
+                <div className="text-sm text-muted-foreground">Fat</div>
+                <div className="text-lg font-semibold text-foreground">
+                  {Number.isInteger(meal.macros.fat)
+                    ? meal.macros.fat.toFixed(0)
+                    : meal.macros.fat.toFixed(1)}
+                  g
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="outline"
+              size="lg"
+              className="flex-1 h-12 text-base font-medium rounded-xl bg-transparent"
+              onClick={handleClose}
+            >
+              Close
+            </Button>
+            <Button
+              variant="destructive"
+              size="lg"
+              className="flex-1 h-12 text-base font-medium rounded-xl"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              <Trash className="size-4 mr-2" />
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
           </div>
         </div>
-      </div>
-
-      <div className="flex flex-col gap-2 mt-4">
-        {/* Total Calories - prominent */}
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">
-            {Math.round(meal.kcal)}
-          </span>
-          <span className="text-muted-foreground font-medium">kcal</span>
-        </div>
-        {/* Macros Row */}
-        <MacrosRow
-          protein={meal.macros.protein}
-          carbs={meal.macros.carbs}
-          fat={meal.macros.fat}
-        />
-      </div>
-    </article>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -283,7 +333,6 @@ function MacrosRow({
 
   return (
     <div className="grid grid-cols-3 gap-3 md:gap-4 text-sm">
-      {/* Protein */}
       <div className="flex items-center justify-center gap-1.5">
         <Drumstick
           className="size-4 text-muted-foreground"
@@ -292,13 +341,11 @@ function MacrosRow({
         <span className="font-medium">Protein</span>
         <span className="text-muted-foreground">{fmt(protein)}g</span>
       </div>
-      {/* Carbs */}
       <div className="flex items-center justify-center gap-1.5">
         <Wheat className="size-4 text-muted-foreground" aria-hidden="true" />
         <span className="font-medium">Carbs</span>
         <span className="text-muted-foreground">{fmt(carbs)}g</span>
       </div>
-      {/* Fat */}
       <div className="flex items-center justify-center gap-1.5">
         <Droplet className="size-4 text-muted-foreground" aria-hidden="true" />
         <span className="font-medium">Fat</span>

@@ -10,7 +10,6 @@ import {
   useFoodAnalysis,
   useFoodExtraction,
 } from "@/hooks/use-food";
-import { useCurrentDayNutrition, useUserStore } from "@/store/user-store";
 import Link from "next/link";
 import {
   Card,
@@ -20,16 +19,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CameraNavBar } from "@/components/nav/camera-nav";
-import { useDailyMeals } from "@/hooks/use-meals";
-import { useAuth } from "@clerk/nextjs";
 import {
   ScanningFrame,
   VoiceAnimation,
 } from "@/components/track/CameraComponents";
 import React from "react";
-import { ManualEntryCard } from "@/components/track/manual_card";
+import { useCurrentDayNutrition, useUserStore } from "@/store";
 import { Analysis } from "@/components/track/analysis";
-import { Edit, X } from "lucide-react";
 
 export default function CameraPage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,23 +36,15 @@ export default function CameraPage() {
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
   const [capturedFile, setCapturedFile] = useState<File | null>(null);
-  const { user, calculateAndSaveDailyCalories } = useUserStore();
-
+  const { user } = useUserStore();
   const [isListening, setIsListening] = useState(false);
   const [voiceText, setVoiceText] = useState("");
   const [voiceError, setVoiceError] = useState<string | null>(null);
 
-  const [isEditingQuantity, setIsEditingQuantity] = useState(false);
-  const [editedQuantity, setEditedQuantity] = useState("");
-  const [hasEditedQuantity, setHasEditedQuantity] = useState(false);
-  const [updatedMacros, setUpdatedMacros] = useState<any>(null);
-  const [isUpdatingMacros, setIsUpdatingMacros] = useState(false);
-  const [tracking, setTracking] = useState(false);
-
   const [isSafari, setIsSafari] = useState(false);
   const [showSafariWarning, setShowSafariWarning] = useState(false);
   const [, setExtracting] = useState(false); // Declare setExtracting variable
-  const { trackMeal } = useDailyMeals();
+
   // Upload and analysis hooks
   const {
     uploadImage,
@@ -75,14 +63,7 @@ export default function CameraPage() {
     extractFood,
     extracting: extractingState,
     error: extractionError,
-    result: extractionResult,
   } = useFoodExtraction();
-
-  // Manual entry card state
-  const [isManualCardOpen, setIsManualCardOpen] = useState(false);
-  const [manualFoodName, setManualFoodName] = useState("");
-  const [manualQuantity, setManualQuantity] = useState("");
-  const { getToken } = useAuth();
 
   const router = useRouter();
   const currentDayNutrition = useCurrentDayNutrition();
@@ -113,7 +94,6 @@ export default function CameraPage() {
           }
         : undefined,
     [
-      user?.plan,
       user?.profile.profileText,
       user?.profile.macros,
       currentDayNutrition?.totalCalories,
@@ -122,19 +102,6 @@ export default function CameraPage() {
       currentDayNutrition?.totalFat,
     ],
   );
-
-  // Default food info (fallback for demo)
-  const defaultFood = { name: "Avocado Toast", quantity: "1 slice" };
-
-  // Derived currentFood and currentMacros
-  const currentFood = analysisResult?.data?.foodItems?.[0] || defaultFood;
-  const currentMacros = updatedMacros ??
-    analysisResult?.data?.totalMacros ?? {
-      calories: 0,
-      protein: 0,
-      carbs: 0,
-      fat: 0,
-    };
 
   useEffect(() => {
     const userAgent = navigator.userAgent.toLowerCase();
@@ -182,7 +149,6 @@ export default function CameraPage() {
       try {
         setVoiceError(null);
         const extractedFood = await extractFood(transcript);
-        console.log(extractedFood, "food");
         if (extractedFood) {
           if (extractedFood.quantity) {
             // Has quantity, analyze directly
@@ -193,10 +159,9 @@ export default function CameraPage() {
             );
             setIsCardOpen(true);
           } else {
-            // Missing quantity, open manual input with food name pre-filled
-            setManualFoodName(extractedFood.name);
-            setManualQuantity("");
-            setIsManualCardOpen(true);
+            router.push(
+              `/manual-entry?food=${encodeURIComponent(extractedFood.name)}`,
+            );
           }
         } else {
           setVoiceError("Could not extract food information from voice input");
@@ -205,7 +170,7 @@ export default function CameraPage() {
         setVoiceError("Failed to process voice input");
       }
     },
-    [extractFood, analyzeText, userContext],
+    [extractFood, analyzeText, userContext, router],
   );
 
   const startListening = useCallback(() => {
@@ -382,242 +347,25 @@ export default function CameraPage() {
     [uploadImage, analyzeImage, userContext],
   );
 
-  const handleManualAnalysis = useCallback(async () => {
-    if (!manualFoodName.trim() || !manualQuantity.trim()) return;
-    console.log(userContext);
-    try {
-      await analyzeText(
-        manualFoodName.trim(),
-        manualQuantity.trim(),
-        userContext,
-      );
-      setIsManualCardOpen(false);
-      setIsCardOpen(true);
-    } catch {}
-    setManualFoodName("");
-    setManualQuantity("");
-  }, [manualFoodName, manualQuantity, analyzeText, userContext]);
-
   const closeCard = useCallback(() => {
     setIsCardOpen(false);
     if (photoUrl) URL.revokeObjectURL(photoUrl);
     setPhotoUrl(undefined);
     setCapturedFile(null);
-    setIsEditingQuantity(false);
-    setEditedQuantity("");
-    setHasEditedQuantity(false);
-    setUpdatedMacros(null);
-    setIsUpdatingMacros(false);
   }, [photoUrl]);
 
   const openManualCard = useCallback(() => {
     try {
       if ("vibrate" in navigator) navigator.vibrate?.(10);
     } catch {}
-    setIsManualCardOpen(true);
-  }, []);
-
-  const closeManualCard = useCallback(() => {
-    setIsManualCardOpen(false);
-    setManualFoodName("");
-    setManualQuantity("");
-  }, []);
-
-  const handleSetupProfile = () => {
-    router.push("/profile");
-  };
+    router.push("/manual-entry");
+  }, [router]);
 
   const handleRetry = useCallback(() => {
     if (capturedFile) {
       handleUploadAndAnalyze(capturedFile);
     }
   }, [capturedFile, handleUploadAndAnalyze]);
-
-  const handleEditQuantity = useCallback(() => {
-    if (hasEditedQuantity) return; // Only allow editing once
-
-    const currentFood = analysisResult?.data?.foodItems?.[0];
-    if (currentFood) {
-      setEditedQuantity(currentFood.quantity);
-      setIsEditingQuantity(true);
-    }
-  }, [analysisResult, hasEditedQuantity]);
-
-  const handleUpdateMacros = useCallback(async () => {
-    if (!editedQuantity.trim() || !analysisResult?.data?.foodItems?.[0]) return;
-
-    const currentFood = analysisResult.data.foodItems[0];
-    setIsUpdatingMacros(true);
-
-    try {
-      // Make API call similar to text analysis but for quantity update
-      const result = await analyzeText(
-        currentFood.name,
-        editedQuantity.trim(),
-        userContext,
-      );
-
-      if (result?.success && result?.data) {
-        setUpdatedMacros(result.data.totalMacros);
-        setHasEditedQuantity(true);
-        setIsEditingQuantity(false);
-
-        // Update the analysis result with new quantity and macros
-        const updatedResult = {
-          ...analysisResult,
-          data: {
-            ...analysisResult.data,
-            foodItems: [
-              {
-                ...currentFood,
-                quantity: editedQuantity.trim(),
-              },
-            ],
-            totalMacros: result.data.totalMacros,
-          },
-        };
-
-        // Store updated result for tracking
-        sessionStorage.setItem(
-          "foodAnalysisData",
-          JSON.stringify({
-            analysisResult: updatedResult,
-            photoUrl,
-            analysisType: "image_with_quantity_edit",
-          }),
-        );
-      }
-    } catch (error) {
-      console.error("Failed to update macros:", error);
-    } finally {
-      setIsUpdatingMacros(false);
-    }
-  }, [editedQuantity, analysisResult, userContext, photoUrl]);
-
-  const handleCancelEdit = useCallback(() => {
-    setIsEditingQuantity(false);
-    setEditedQuantity("");
-  }, []);
-
-  const handleViewFullAnalysis = useCallback(() => {
-    if (analysisResult?.data) {
-      setTracking(true);
-      const finalResult =
-        hasEditedQuantity && updatedMacros
-          ? {
-              ...analysisResult,
-              data: {
-                ...analysisResult.data,
-                foodItems: [
-                  {
-                    ...analysisResult.data.foodItems[0],
-                    quantity: editedQuantity,
-                  },
-                ],
-                totalMacros: updatedMacros,
-              },
-            }
-          : analysisResult;
-
-      sessionStorage.setItem(
-        "foodAnalysisData",
-        JSON.stringify({
-          analysisResult: finalResult,
-          photoUrl,
-          analysisType: hasEditedQuantity
-            ? "image_with_quantity_edit"
-            : analysisResult.analysisType || "image",
-        }),
-      );
-      setTracking(false);
-      try {
-        if ("vibrate" in navigator) navigator.vibrate?.(15);
-      } catch {}
-    }
-  }, [
-    analysisResult,
-    photoUrl,
-    router,
-    hasEditedQuantity,
-    updatedMacros,
-    editedQuantity,
-  ]);
-
-  const clearAllStates = useCallback(() => {
-    // Wipe everything that belongs to Analysis or CameraPage
-    setIsEditingQuantity(false);
-    setEditedQuantity("");
-    setHasEditedQuantity(false);
-    setUpdatedMacros(null);
-    setIsUpdatingMacros(false);
-    setTracking(false);
-    setIsCardOpen(false);
-    setPhotoUrl(undefined);
-    setCapturedFile(null);
-    // If Analysis manages additional states, clear them via props callback as well.
-  }, []);
-  const handleAddMeal = useCallback(async () => {
-    if (!analysisResult?.data || !currentDayNutrition) return;
-
-    setTracking(true);
-    try {
-      // Create combined meal name from all items
-      const mealName = analysisResult.data.foodItems
-        .map((item) => item.name)
-        .join(", ");
-
-      // Create combined quantity description
-      const combinedQuantity = analysisResult.data.foodItems
-        .map((item) => `${item.quantity} of ${item.name}`)
-        .join(", ");
-      const token = await getToken();
-      if (!token) return;
-      // Track the meal using store logic
-      await trackMeal(
-        mealName, // Combined meal name
-        combinedQuantity, // Combined quantity description
-        analysisResult.data.totalMacros, // Total macros including all added items
-        analysisResult,
-        photoUrl,
-      );
-
-      const currentDate = new Date().toISOString().split("T")[0];
-
-      // IMPORTANT: Update today's consumed calories by recalculating totals
-
-      await calculateAndSaveDailyCalories(currentDate, token);
-      clearAllStates();
-      // Navigate back to dashboard
-      router.push("/home");
-    } catch (error) {
-      console.error("Error tracking meal:", error);
-      // Handle error appropriately
-    } finally {
-      setTracking(false);
-    }
-  }, [analysisResult, currentDayNutrition, router]);
-
-  const handleRecalculateMeal = useCallback(
-    async (items: { name: string; quantity: string }[]) => {
-      try {
-        // Build a combined quantity summary for the analyzer
-        const combinedQuantity = items
-          .map((i) => `${i.quantity} of ${i.name}`)
-          .join(", ");
-        const res = await analyzeText("Meal", combinedQuantity, userContext);
-        if (res?.success && res?.data) {
-          return {
-            totalMacros: res.data.totalMacros,
-            suggestion: res.data.suggestion,
-          };
-        }
-      } catch (e) {
-        console.error("Failed to recalculate meal:", e);
-      }
-      return null;
-    },
-    [analyzeText, userContext],
-  );
 
   const profile = user?.profile;
   const isEmptyProfile = useMemo(() => {
@@ -811,88 +559,26 @@ export default function CameraPage() {
         </div>
       </div>
 
-      <div
-        className={`fixed inset-0 z-30 transition-opacity duration-300 ease-out ${
-          isCardOpen
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none"
-        }`}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className="h-full w-full bg-background/95 backdrop-blur-xl border-0 shadow-2xl">
-          <div className="relative flex justify-end items-end px-6 pt-6 pb-0 space-x-0">
-            {analysisResult?.analysisType == "image" && (
-              <button
-                type="button"
-                aria-label="Close"
-                onClick={() => {
-                  closeCard();
-                  setIsManualCardOpen(true);
-                }}
-                className="inline-flex items-center justify-center p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors duration-200"
-              >
-                <Edit className="h-6 w-6" />
-              </button>
-            )}
-            <button
-              type="button"
-              aria-label="Close"
-              onClick={closeCard}
-              className="inline-flex items-center justify-center p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors duration-200"
-            >
-              <X className="h-6 w-6" />
-            </button>
-          </div>
-
-          <div className="px-6 pb-8 h-[calc(100vh-64px)] overflow-y-auto">
-            <Analysis
-              uploading={uploading}
-              analyzing={analyzing}
-              extractingState={extractingState}
-              uploadError={uploadError}
-              onClose={() => {
-                clearAllStates();
-                closeCard();
-              }}
-              analysisError={analysisError}
-              extractionError={extractionError}
-              voiceError={voiceError}
-              voiceText={voiceText}
-              progress={progress}
-              isSafari={isSafari}
-              handleRetry={handleRetry}
-              analysisData={analysisResult}
-              closeCard={closeCard}
-              openManualCard={openManualCard}
-              currentFood={currentFood}
-              hasEditedQuantity={hasEditedQuantity}
-              isEditingQuantity={isEditingQuantity}
-              handleEditQuantity={handleEditQuantity}
-              editedQuantity={editedQuantity}
-              setEditedQuantity={setEditedQuantity}
-              isUpdatingMacros={isUpdatingMacros}
-              handleUpdateMacros={handleUpdateMacros}
-              handleCancelEdit={handleCancelEdit}
-              tracking={tracking}
-              onRecalculateMeal={handleRecalculateMeal}
-            />
-          </div>
-        </div>
-      </div>
-
-      {isManualCardOpen && (
-        <ManualEntryCard
-          open={isManualCardOpen}
-          onClose={closeManualCard}
-          manualFoodName={manualFoodName}
-          setManualFoodName={setManualFoodName}
-          manualQuantity={manualQuantity}
-          setManualQuantity={setManualQuantity}
-          analyzing={analyzing}
-          onAnalyze={handleManualAnalysis}
-        />
-      )}
+      <Analysis
+        uploading={uploading}
+        analyzing={analyzing}
+        extractingState={extractingState}
+        uploadError={uploadError}
+        analysisError={analysisError}
+        extractionError={extractionError}
+        voiceError={voiceError}
+        voiceText={voiceText}
+        progress={progress}
+        isSafari={isSafari}
+        analysisResult={analysisResult as any}
+        isOpen={isCardOpen}
+        onClose={closeCard}
+        handleRetry={handleRetry}
+        openManualCard={openManualCard}
+        photoUrl={photoUrl}
+        redirectAfterAdd="/home"
+        showEditButton={true}
+      />
 
       {/* Immersive photo overlay */}
       {photoSrc && (

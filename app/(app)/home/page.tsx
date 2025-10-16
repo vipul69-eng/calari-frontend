@@ -539,7 +539,7 @@ export default function MainPage() {
               </h3>
 
               <button
-                onClick={() => router.push("/track")}
+                onClick={() => router.push("/track/manual")}
                 className="inline-flex items-center gap-3 rounded-2xl bg-primary text-primary-foreground px-8 py-3 font-semibold hover:bg-primary/90 transition-all duration-200 shadow-lg shadow-primary/25 font-body"
               >
                 <Camera className="h-5 w-5" />
